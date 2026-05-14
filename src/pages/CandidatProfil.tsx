@@ -1,6 +1,27 @@
 import { useState, useRef, useEffect } from 'react';
 import type { PageName, AnalysisStatus, CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
 import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile } from '../lib/candidateService';
+import * as pdfjs from 'pdfjs-dist';
+
+// Use CDN worker — avoids Vite bundler complexity
+pdfjs.GlobalWorkerOptions.workerSrc =
+  `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+async function extractPdfText(file: File): Promise<string> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  const pages: string[] = [];
+  for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    const text = content.items
+      .filter((item): item is { str: string } => 'str' in item)
+      .map(item => item.str)
+      .join(' ');
+    pages.push(text);
+  }
+  return pages.join('\n\n').trim();
+}
 
 interface CandidatProfilProps {
   setPage: (p: PageName) => void;
@@ -109,11 +130,17 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
     setCvData(null);
 
     try {
-      const base64 = await fileToBase64(file);
+      // Extract text from PDF in the browser — works with any LLM (no multimodal needed)
+      const cvText = await extractPdfText(file);
+      if (!cvText || cvText.length < 50) {
+        setCvError('Impossible de lire ce PDF. Essayez un CV généré par Word ou un outil en ligne.');
+        setCvLoading(false);
+        return;
+      }
       const res = await fetch('/api/analyze-cv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileBase64: base64, mimeType: 'application/pdf' }),
+        body: JSON.stringify({ cvText }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -142,17 +169,6 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
     }
   }
 
-  function fileToBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(',')[1]); // strip data:...;base64,
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
 
   // ── Audio recording ───────────────────────────────────────────────────────
   async function startRecording() {
