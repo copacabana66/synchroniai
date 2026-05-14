@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { PageName, AnalysisStatus, CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
 import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile } from '../lib/candidateService';
 import * as pdfjs from 'pdfjs-dist';
+import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 
 // Use CDN worker — avoids Vite bundler complexity
 pdfjs.GlobalWorkerOptions.workerSrc =
@@ -15,8 +16,8 @@ async function extractPdfText(file: File): Promise<string> {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
     const text = content.items
-      .filter((item): item is { str: string } => 'str' in item)
-      .map(item => item.str)
+      .filter((item): item is TextItem => 'str' in item)
+      .map((item) => item.str)
       .join(' ');
     pages.push(text);
   }
