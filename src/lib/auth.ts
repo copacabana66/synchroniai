@@ -1,3 +1,4 @@
+import type { AuthChangeEvent, Session } from '@supabase/supabase-js';
 import { supabase, isConfigured } from './supabase';
 import type { AuthUser, UserRole } from '../types';
 
@@ -49,8 +50,10 @@ export async function getSession(): Promise<AuthUser | null> {
 
 export function onAuthChange(cb: (user: AuthUser | null) => void) {
   if (!isConfigured) return () => {};
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-    cb(session?.user ? mapUser(session.user) : null);
-  });
+  const { data } = supabase.auth.onAuthStateChange(
+    (_event: AuthChangeEvent, session: Session | null) => {
+      cb(session?.user ? mapUser(session.user) : null);
+    },
+  );
   return () => data.subscription.unsubscribe();
 }
