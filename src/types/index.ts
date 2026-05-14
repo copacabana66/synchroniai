@@ -72,3 +72,11 @@ export interface AuthUser {
   email: string;
   role: UserRole;
 }
+
+export interface AnalysisStatus {
+  cv: boolean;
+  questionnaire: boolean;
+  video: boolean;
+}
+
+export type RecruteurPlan = 'carte' | 'pro';
