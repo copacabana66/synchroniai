@@ -56,8 +56,19 @@ export interface AppStep {
 
 export type PageName =
   | 'landing'
+  | 'login'
+  | 'pricing'
+  | 'register'
   | 'recruteur'
   | 'compte-rendu'
   | 'candidat'
   | 'candidat-profil'
   | 'candidat-avancement';
+
+export type UserRole = 'recruteur' | 'candidat' | null;
+
+export interface AuthUser {
+  name: string;
+  email: string;
+  role: UserRole;
+}

@@ -78,7 +78,7 @@ export function Landing({ setPage }: LandingProps) {
         <div className="flex items-center justify-center gap-0 flex-wrap max-w-3xl mx-auto">
           {/* Left card */}
           <button
-            onClick={() => setPage('candidat')}
+            onClick={() => setPage('pricing')}
             className="flex-1 max-w-xs text-center rounded-2xl p-8 cursor-pointer border-[1.5px] border-white/12 transition-all duration-200 hover:border-teal/40"
             style={{ background: 'rgba(255,255,255,0.05)' }}
             onMouseEnter={e =>
@@ -112,7 +112,7 @@ export function Landing({ setPage }: LandingProps) {
 
           {/* Right card */}
           <button
-            onClick={() => setPage('recruteur')}
+            onClick={() => setPage('pricing')}
             className="flex-1 max-w-xs text-center rounded-2xl p-8 cursor-pointer border-[1.5px] border-white/12 transition-all duration-200 hover:border-orange/40"
             style={{ background: 'rgba(255,255,255,0.05)' }}
             onMouseEnter={e =>
@@ -200,7 +200,7 @@ export function Landing({ setPage }: LandingProps) {
                 </div>
               ))}
               <button
-                onClick={() => setPage('candidat-profil')}
+                onClick={() => setPage('pricing')}
                 className="w-full bg-teal text-primary font-bold rounded-btn py-3 mt-2 hover:opacity-90 transition-all"
               >
                 Créer mon profil candidat →
@@ -237,7 +237,7 @@ export function Landing({ setPage }: LandingProps) {
                 </div>
               ))}
               <button
-                onClick={() => setPage('recruteur')}
+                onClick={() => setPage('pricing')}
                 className="w-full bg-orange text-white font-bold rounded-btn py-3 mt-2 hover:opacity-90 transition-all"
               >
                 Accéder au tableau de bord →
@@ -408,13 +408,13 @@ export function Landing({ setPage }: LandingProps) {
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <button
-            onClick={() => setPage('recruteur')}
+            onClick={() => setPage('pricing')}
             className="px-8 py-3.5 rounded-btn bg-orange text-white font-bold hover:opacity-90 transition-all"
           >
             Je suis recruteur →
           </button>
           <button
-            onClick={() => setPage('candidat')}
+            onClick={() => setPage('pricing')}
             className="px-8 py-3.5 rounded-btn bg-teal text-primary font-bold hover:opacity-90 transition-all"
           >
             Je suis candidat →
