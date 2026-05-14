@@ -74,10 +74,44 @@ export interface AuthUser {
   role: UserRole;
 }
 
+export interface CvAnalysisData {
+  fullName: string;
+  currentRole: string;
+  yearsOfExperience: number;
+  skills: string[];
+  technicalSkills: string[];
+  softSkills: string[];
+  education: string;
+  languages: string[];
+  experience: string;
+  summary: string;
+}
+
+export interface VideoAnalysisData {
+  transcript: string;
+  clarityScore: number;
+  structureScore: number;
+  fluencyScore: number;
+  analysisNotes: string;
+  keyThemes: string[];
+  communicationStrengths: string[];
+  communicationAreas: string[];
+}
+
+export interface QuestionnaireData {
+  managementPref: string;
+  environmentPref: string;
+  collaborationPref: string;
+  rhythmPref: string;
+}
+
 export interface AnalysisStatus {
   cv: boolean;
+  cvData?: CvAnalysisData;
   questionnaire: boolean;
+  questionnaireData?: QuestionnaireData;
   video: boolean;
+  videoData?: VideoAnalysisData;
 }
 
 export type RecruteurPlan = 'carte' | 'pro';
