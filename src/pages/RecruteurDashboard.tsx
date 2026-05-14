@@ -58,13 +58,21 @@ export function RecruteurDashboard({
     <div className="min-h-screen bg-bg">
       <div className="max-w-6xl mx-auto px-6 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-extrabold text-primary tracking-tight">
-            Tableau de bord Recruteur
-          </h1>
-          <p className="text-muted text-sm mt-1">
-            Gérez vos candidatures et analysez les compatibilités
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl font-extrabold text-primary tracking-tight">
+              Tableau de bord Recruteur
+            </h1>
+            <p className="text-muted text-sm mt-1">
+              Gérez vos candidatures et analysez les compatibilités
+            </p>
+          </div>
+          <button
+            onClick={() => setPage('recruteur-fiche-poste')}
+            className="px-5 py-2.5 rounded-btn bg-teal text-primary font-bold text-sm hover:opacity-90 transition-all flex items-center gap-2"
+          >
+            <span>+</span> Nouvelle fiche de poste
+          </button>
         </div>
 
         {/* Stats */}

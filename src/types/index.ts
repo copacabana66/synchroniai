@@ -60,6 +60,7 @@ export type PageName =
   | 'pricing'
   | 'register'
   | 'recruteur'
+  | 'recruteur-fiche-poste'
   | 'compte-rendu'
   | 'candidat'
   | 'candidat-profil'
@@ -80,3 +81,29 @@ export interface AnalysisStatus {
 }
 
 export type RecruteurPlan = 'carte' | 'pro';
+
+export type ManagementStyle =
+  | 'bienveillant'
+  | 'objectifs'
+  | 'directif'
+  | 'horizontal'
+  | 'autonomie';
+
+export interface JobPosting {
+  id: string;
+  recruiterId: string;
+  title: string;
+  company: string;
+  location: string;
+  contractType: string;
+  salaryMin: string;
+  salaryMax: string;
+  description: string;
+  expectations: string;
+  teamProfile: string;
+  managementStyle: ManagementStyle | '';
+  managementDetail: string;
+  status: 'draft' | 'published' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+}
