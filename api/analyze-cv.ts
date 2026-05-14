@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Only PDF is supported by Gemini inline_data for documents
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 const PROMPT = `Tu es un expert en analyse de CV RH. Analyse ce CV et retourne UNIQUEMENT un JSON strict, sans markdown ni texte autour.
 
