@@ -1,0 +1,85 @@
+import type { JobOffer, AppStep } from '../types';
+
+export const offers: JobOffer[] = [
+  {
+    id: 1,
+    company: 'TechCorp SAS',
+    role: 'Dev Full-Stack React/Node',
+    location: 'Perpignan (Hybride)',
+    score: 94,
+    logoInitials: 'TC',
+    accentColor: '#09C4A0',
+    management: 'Horizontal / Agile',
+    team: 'Équipe 8 devs',
+    contract: 'CDI',
+    salary: '48–55k€',
+    status: 'Nouveau',
+  },
+  {
+    id: 2,
+    company: 'InnovateSud',
+    role: 'Lead Developer Backend',
+    location: 'Montpellier (Remote 3j)',
+    score: 87,
+    logoInitials: 'IS',
+    accentColor: '#6851C7',
+    management: 'Par objectifs',
+    team: 'Startup 25 pers.',
+    contract: 'CDI',
+    salary: '52–60k€',
+    status: 'En cours',
+  },
+  {
+    id: 3,
+    company: 'Catalane Digital',
+    role: 'Ingénieur Logiciel',
+    location: 'Barcelone (Remote)',
+    score: 81,
+    logoInitials: 'CD',
+    accentColor: '#F06A28',
+    management: 'Bienveillant',
+    team: 'Équipe internationale',
+    contract: 'CDI',
+    salary: '45–50k€',
+    status: 'En attente',
+  },
+];
+
+export const appSteps: AppStep[] = [
+  {
+    label: 'Candidature envoyée',
+    done: true,
+    active: false,
+    date: '14 mai 2026',
+    detail: 'Votre dossier a bien été reçu par InnovateSud.',
+  },
+  {
+    label: 'Analyse IA en cours',
+    done: true,
+    active: false,
+    date: '14 mai 2026',
+    detail: 'Score de compatibilité calculé sur 7 dimensions.',
+  },
+  {
+    label: 'Prise de contact DRH',
+    done: false,
+    active: true,
+    date: '16 mai 2026 (prévu)',
+    detail:
+      'Marie Durand vous a envoyé un message. Répondez pour confirmer votre disponibilité.',
+  },
+  {
+    label: 'Entretien technique',
+    done: false,
+    active: false,
+    date: 'À planifier',
+    detail: '45 min — visio ou présentiel à Montpellier.',
+  },
+  {
+    label: 'Décision finale',
+    done: false,
+    active: false,
+    date: 'Semaine du 25 mai',
+    detail: 'Retour sous 5 jours ouvrés après l\'entretien.',
+  },
+];

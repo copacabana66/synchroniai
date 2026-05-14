@@ -1,0 +1,39 @@
+@import '@fontsource/outfit/400.css';
+@import '@fontsource/outfit/500.css';
+@import '@fontsource/outfit/600.css';
+@import '@fontsource/outfit/700.css';
+@import '@fontsource/outfit/800.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Outfit', system-ui, sans-serif;
+    background: #F5F7F0;
+    color: #1A3E6E;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+  }
+  #root {
+    width: 100%;
+    text-align: left;
+  }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(26,62,110,0.15);
+    border-radius: 99px;
+  }
+}
+
+@layer utilities {
+  .animate-spin-slow { animation: spin 8s linear infinite; }
+  .animate-pulse-soft { animation: pulse-soft 2.2s ease-in-out infinite; }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(0.94); opacity: 0.72; }
+}
