@@ -93,10 +93,15 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
 
   // ── CV upload & analysis ──────────────────────────────────────────────────
   async function handleCvFile(file: File) {
-    if (file.size > 7 * 1024 * 1024) { setCvError('Fichier trop volumineux (max 7 MB).'); return; }
-    const allowed = ['application/pdf', 'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowed.includes(file.type)) { setCvError('Format non supporté. Utilisez PDF ou DOCX.'); return; }
+    // Gemini inline_data only supports PDF
+    if (file.type !== 'application/pdf') {
+      setCvError('Seul le format PDF est accepté. Convertissez votre CV en PDF et réessayez.');
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) {
+      setCvError('Fichier trop volumineux (max 4 MB). Compressez votre PDF et réessayez.');
+      return;
+    }
 
     setCvFile(file);
     setCvError(null);
@@ -108,13 +113,18 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
       const res = await fetch('/api/analyze-cv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileBase64: base64, mimeType: file.type }),
+        body: JSON.stringify({ fileBase64: base64, mimeType: 'application/pdf' }),
       });
       const data = await res.json();
       if (!res.ok) {
-        setCvError(data.error === 'AI_NOT_CONFIGURED'
-          ? 'Clé API non configurée sur le serveur.'
-          : 'Erreur d\'analyse. Réessayez.');
+        const errorMap: Record<string, string> = {
+          AI_NOT_CONFIGURED: 'Clé API Gemini non configurée sur le serveur.',
+          FORMAT_NOT_SUPPORTED: 'Format non supporté. Utilisez un PDF.',
+          FILE_TOO_LARGE: 'PDF trop volumineux. Essayez de le compresser (max ~3 MB).',
+          EMPTY_RESPONSE: 'Gemini n\'a pas pu lire ce PDF. Essayez un autre fichier.',
+          CONTENT_BLOCKED: 'Contenu bloqué par Gemini. Vérifiez le fichier.',
+        };
+        setCvError(errorMap[data.error] ?? `Erreur : ${data.detail ?? data.error ?? 'Inconnue'}`);
       } else {
         const parsed = data as CvAnalysisData;
         setCvData(parsed);
@@ -282,7 +292,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
               <input
                 id="cv-upload"
                 type="file"
-                accept=".pdf,.doc,.docx"
+                accept=".pdf"
                 className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleCvFile(f); }}
               />
@@ -302,7 +312,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
                 <>
                   <div className="text-4xl mb-3">📄</div>
                   <p className="text-primary font-semibold mb-1">Cliquez ou glissez votre CV ici</p>
-                  <p className="text-muted text-sm">PDF ou DOCX · max 7 MB</p>
+                  <p className="text-muted text-sm">PDF uniquement · max 4 MB</p>
                 </>
               )}
             </label>

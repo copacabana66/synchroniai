@@ -1,9 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-export const config = { api: { bodyParser: { sizeLimit: '8mb' } } };
-
+// Only PDF is supported by Gemini inline_data for documents
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
 
 const PROMPT = `Tu es un expert en analyse de CV RH. Analyse ce CV et retourne UNIQUEMENT un JSON strict, sans markdown ni texte autour.
 
@@ -32,10 +31,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const { fileBase64, mimeType } = req.body as { fileBase64?: string; mimeType?: string };
   if (!fileBase64 || !mimeType) return res.status(400).json({ error: 'fileBase64 et mimeType requis' });
 
-  const supportedTypes = ['application/pdf', 'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-  if (!supportedTypes.includes(mimeType)) {
-    return res.status(400).json({ error: 'Format non supporté. Utilisez PDF ou DOCX.' });
+  // Gemini inline_data only supports PDF — DOCX must be rejected clearly
+  if (mimeType !== 'application/pdf') {
+    return res.status(400).json({ error: 'FORMAT_NOT_SUPPORTED' });
+  }
+
+  // Guard against oversized payloads (base64 inflates ~33%)
+  const estimatedBytes = Math.round(fileBase64.length * 0.75);
+  if (estimatedBytes > 4_000_000) {
+    return res.status(400).json({ error: 'FILE_TOO_LARGE' });
   }
 
   try {
@@ -45,7 +49,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       body: JSON.stringify({
         contents: [{
           parts: [
-            { inline_data: { mime_type: mimeType, data: fileBase64 } },
+            { inline_data: { mime_type: 'application/pdf', data: fileBase64 } },
             { text: PROMPT },
           ],
         }],
@@ -53,21 +57,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }),
     });
 
+    const responseText = await geminiRes.text();
+
     if (!geminiRes.ok) {
-      const err = await geminiRes.text();
-      console.error('Gemini CV error:', err);
-      return res.status(502).json({ error: 'AI_ERROR' });
+      console.error('Gemini CV error:', responseText);
+      // Return the actual Gemini error so the frontend can display it
+      let detail = 'Erreur Gemini';
+      try {
+        const parsed = JSON.parse(responseText);
+        detail = parsed?.error?.message ?? responseText.slice(0, 200);
+      } catch { detail = responseText.slice(0, 200); }
+      return res.status(502).json({ error: 'AI_ERROR', detail });
     }
 
-    const data = await geminiRes.json() as {
-      candidates: Array<{ content: { parts: Array<{ text: string }> } }>;
+    const data = JSON.parse(responseText) as {
+      candidates?: Array<{ content: { parts: Array<{ text: string }> }; finishReason?: string }>;
+      promptFeedback?: { blockReason?: string };
     };
 
+    // Check for content filtering / empty response
+    if (data.promptFeedback?.blockReason) {
+      return res.status(422).json({ error: 'CONTENT_BLOCKED', detail: data.promptFeedback.blockReason });
+    }
+
     const raw = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+    if (!raw) return res.status(502).json({ error: 'EMPTY_RESPONSE' });
+
     const clean = raw.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
     return res.status(200).json(JSON.parse(clean));
   } catch (e) {
     console.error('analyze-cv error:', e);
-    return res.status(500).json({ error: 'PARSE_ERROR' });
+    return res.status(500).json({ error: 'PARSE_ERROR', detail: String(e) });
   }
 }
