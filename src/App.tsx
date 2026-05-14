@@ -11,11 +11,9 @@ import { CandidatDashboard } from './pages/CandidatDashboard';
 import { CandidatProfil } from './pages/CandidatProfil';
 import { CandidatAvancement } from './pages/CandidatAvancement';
 import { RecruteurFichePoste } from './pages/RecruteurFichePoste';
+import { getSession, onAuthChange, authSignOut } from './lib/auth';
 
 const NO_NAVBAR: PageName[] = ['login', 'pricing', 'register'];
-
-// Analyse complète pour le compte démo candidat
-const DEMO_ANALYSIS: AnalysisStatus = { cv: true, questionnaire: true, video: true };
 const EMPTY_ANALYSIS: AnalysisStatus = { cv: false, questionnaire: false, video: false };
 
 export default function App() {
@@ -24,17 +22,24 @@ export default function App() {
   const [user, setUser]                           = useState<AuthUser | null>(null);
   const [planChoice, setPlanChoice]               = useState<'recruteur' | 'candidat' | null>(null);
   const [analysis, setAnalysis]                   = useState<AnalysisStatus>(EMPTY_ANALYSIS);
+  const [sessionLoading, setSessionLoading]       = useState(true);
+
+  // Restore session on mount
+  useEffect(() => {
+    getSession().then(u => {
+      if (u) setUser(u);
+      setSessionLoading(false);
+    });
+    // Listen for auth state changes (tab refocus, token refresh, logout from another tab)
+    const unsub = onAuthChange(u => setUser(u));
+    return unsub;
+  }, []);
 
   useEffect(() => { window.scrollTo(0, 0); }, [page]);
 
   function handleSetUser(u: AuthUser) {
     setUser(u);
-    // Compte démo candidat → analyse déjà faite
-    if (u.email === 'candidat@demo.fr') {
-      setAnalysis(DEMO_ANALYSIS);
-    } else {
-      setAnalysis(EMPTY_ANALYSIS);
-    }
+    setAnalysis(EMPTY_ANALYSIS);
   }
 
   function handleAnalysisComplete(steps: AnalysisStatus) {
@@ -42,18 +47,27 @@ export default function App() {
   }
 
   function navigateTo(p: PageName) {
-    const protected_pages: PageName[] = ['recruteur', 'recruteur-fiche-poste', 'compte-rendu', 'candidat', 'candidat-profil', 'candidat-avancement'];
-    if (protected_pages.includes(p) && !user) {
-      setPage('login');
-      return;
-    }
+    const protected_pages: PageName[] = [
+      'recruteur', 'recruteur-fiche-poste', 'compte-rendu',
+      'candidat', 'candidat-profil', 'candidat-avancement',
+    ];
+    if (protected_pages.includes(p) && !user) { setPage('login'); return; }
     setPage(p);
   }
 
-  function handleLogout() {
+  async function handleLogout() {
+    await authSignOut();
     setUser(null);
     setAnalysis(EMPTY_ANALYSIS);
     setPage('landing');
+  }
+
+  if (sessionLoading) {
+    return (
+      <div className="min-h-screen bg-bg flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-teal/20 border-t-teal rounded-full animate-spin" />
+      </div>
+    );
   }
 
   const showNavbar = !NO_NAVBAR.includes(page);
@@ -70,7 +84,7 @@ export default function App() {
       {page === 'pricing'    && <Pricing setPage={setPage} setPlanChoice={setPlanChoice} />}
       {page === 'register'   && <Register setPage={setPage} setUser={handleSetUser} planChoice={planChoice} />}
 
-      {page === 'recruteur'  && (
+      {page === 'recruteur' && (
         <RecruteurDashboard setPage={navigateTo} setSelectedCandidate={setSelectedCandidate} />
       )}
       {page === 'compte-rendu' && (
@@ -84,13 +98,17 @@ export default function App() {
         />
       )}
       {page === 'candidat-profil' && (
-        <CandidatProfil setPage={navigateTo} onAnalysisComplete={handleAnalysisComplete} />
+        <CandidatProfil
+          setPage={navigateTo}
+          userId={user?.id ?? ''}
+          onAnalysisComplete={handleAnalysisComplete}
+        />
       )}
       {page === 'candidat-avancement' && <CandidatAvancement setPage={navigateTo} />}
       {page === 'recruteur-fiche-poste' && (
         <RecruteurFichePoste
           setPage={navigateTo}
-          recruiterId={user?.email ?? 'anonymous'}
+          recruiterId={user?.id ?? ''}
           companyName={user?.name ?? 'Mon entreprise'}
         />
       )}

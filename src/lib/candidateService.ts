@@ -1,0 +1,99 @@
+import { supabase, isConfigured } from './supabase';
+import type { CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
+
+interface ProfileRow {
+  id: string;
+  full_name?: string;
+  email?: string;
+  cv_url?: string;
+  cv_text?: string;
+  cv_analyzed_at?: string;
+  video_url?: string;
+  video_transcript?: string;
+  video_analyzed_at?: string;
+  management_pref?: string;
+  environment_pref?: string;
+  collaboration_pref?: string;
+  rhythm_pref?: string;
+  location_pref?: string;
+  salary_expectation?: string;
+  contract_type?: string;
+  availability?: string;
+  analysis_cv: boolean;
+  analysis_questionnaire: boolean;
+  analysis_video: boolean;
+  updated_at?: string;
+}
+
+export async function upsertProfile(userId: string, data: Partial<ProfileRow>): Promise<void> {
+  if (!isConfigured) return;
+  const { error } = await supabase
+    .from('candidate_profiles')
+    .upsert({ id: userId, ...data, updated_at: new Date().toISOString() });
+  if (error) console.error('upsertProfile error:', error.message);
+}
+
+export async function getProfile(userId: string): Promise<ProfileRow | null> {
+  if (!isConfigured) return null;
+  const { data, error } = await supabase
+    .from('candidate_profiles')
+    .select('*')
+    .eq('id', userId)
+    .maybeSingle();
+  if (error) { console.error('getProfile error:', error.message); return null; }
+  return data;
+}
+
+export async function saveCvAnalysis(userId: string, cvData: CvAnalysisData, cvUrl?: string): Promise<void> {
+  await upsertProfile(userId, {
+    full_name:       cvData.fullName,
+    cv_url:          cvUrl ?? '',
+    cv_text:         JSON.stringify(cvData),
+    cv_analyzed_at:  new Date().toISOString(),
+    analysis_cv:     true,
+  });
+}
+
+export async function saveVideoAnalysis(userId: string, videoData: VideoAnalysisData, videoUrl?: string): Promise<void> {
+  await upsertProfile(userId, {
+    video_url:        videoUrl ?? '',
+    video_transcript: videoData.transcript,
+    video_analyzed_at: new Date().toISOString(),
+    analysis_video:   true,
+  });
+}
+
+export async function saveQuestionnaire(userId: string, q: QuestionnaireData): Promise<void> {
+  await upsertProfile(userId, {
+    management_pref:   q.managementPref,
+    environment_pref:  q.environmentPref,
+    collaboration_pref:q.collaborationPref,
+    rhythm_pref:       q.rhythmPref,
+    analysis_questionnaire: true,
+  });
+}
+
+export async function savePreferences(userId: string, prefs: {
+  location: string; salary: string; contractType: string; availability: string;
+}): Promise<void> {
+  await upsertProfile(userId, {
+    location_pref:     prefs.location,
+    salary_expectation:prefs.salary,
+    contract_type:     prefs.contractType,
+    availability:      prefs.availability,
+  });
+}
+
+// Upload file to Supabase Storage, return public path
+export async function uploadFile(
+  bucket: 'cvs' | 'videos',
+  userId: string,
+  file: File | Blob,
+  extension: string,
+): Promise<string | null> {
+  if (!isConfigured) return null;
+  const path = `${userId}/${Date.now()}.${extension}`;
+  const { error } = await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+  if (error) { console.error(`uploadFile (${bucket}) error:`, error.message); return null; }
+  return path;
+}

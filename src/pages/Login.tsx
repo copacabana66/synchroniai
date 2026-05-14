@@ -1,16 +1,19 @@
 import { useState } from 'react';
 import type { PageName, AuthUser } from '../types';
 import { MatchingLogo } from '../components/MatchingLogo';
+import { authSignIn } from '../lib/auth';
 
 interface LoginProps {
   setPage: (p: PageName) => void;
   setUser: (u: AuthUser) => void;
 }
 
-const MOCK_USERS = [
-  { email: 'recruteur@demo.fr', password: 'demo1234', name: 'Marie Durand', role: 'recruteur' as const },
-  { email: 'candidat@demo.fr',  password: 'demo1234', name: 'Sophie Martin',  role: 'candidat'  as const },
+// Demo fallback — only used when Supabase isn't configured locally
+const DEMO_USERS: AuthUser[] = [
+  { id: 'demo-recruteur', email: 'recruteur@demo.fr', name: 'Marie Durand',  role: 'recruteur' },
+  { id: 'demo-candidat',  email: 'candidat@demo.fr',  name: 'Sophie Martin', role: 'candidat'  },
 ];
+const DEMO_PASSWORD = 'demo1234';
 
 export function Login({ setPage, setUser }: LoginProps) {
   const [email, setEmail]       = useState('');
@@ -18,27 +21,40 @@ export function Login({ setPage, setUser }: LoginProps) {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    setTimeout(() => {
-      const found = MOCK_USERS.find(u => u.email === email && u.password === password);
-      if (found) {
-        setUser({ name: found.name, email: found.email, role: found.role });
-        setPage(found.role === 'recruteur' ? 'recruteur' : 'candidat');
-      } else {
+    try {
+      // Try real Supabase auth first
+      const u = await authSignIn(email, password);
+      setUser(u);
+      setPage(u.role === 'recruteur' ? 'recruteur' : 'candidat');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      // Fallback: demo accounts work even without Supabase configured
+      if (msg === 'SUPABASE_NOT_CONFIGURED') {
+        const demo = DEMO_USERS.find(u => u.email === email);
+        if (demo && password === DEMO_PASSWORD) {
+          setUser(demo);
+          setPage(demo.role === 'recruteur' ? 'recruteur' : 'candidat');
+          return;
+        }
         setError('Email ou mot de passe incorrect.');
+      } else if (msg.includes('Invalid login credentials') || msg.includes('Email not confirmed')) {
+        setError('Email ou mot de passe incorrect. Vérifiez vos identifiants.');
+      } else {
+        setError(msg || 'Erreur de connexion. Réessayez.');
       }
+    } finally {
       setLoading(false);
-    }, 600);
+    }
   }
 
   return (
     <div className="min-h-screen bg-bg flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-md">
 
-        {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <button onClick={() => setPage('landing')} className="flex items-center gap-2.5 mb-6">
             <div className="w-10 h-10 rounded-xl bg-teal flex items-center justify-center">
@@ -50,10 +66,7 @@ export function Login({ setPage, setUser }: LoginProps) {
           <p className="text-muted text-sm">Connectez-vous à votre espace personnel</p>
         </div>
 
-        {/* Card */}
         <div className="bg-card rounded-card border border-border p-8">
-
-          {/* Demo hint */}
           <div className="bg-teal-light border border-teal/25 rounded-xl p-3 mb-6 text-xs text-primary">
             <p className="font-semibold mb-1">🔑 Comptes de démonstration</p>
             <p><span className="font-medium">Recruteur :</span> recruteur@demo.fr / demo1234</p>
@@ -88,7 +101,7 @@ export function Login({ setPage, setUser }: LoginProps) {
             </div>
 
             {error && (
-              <div className="bg-danger-light border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700">
+              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2.5 text-sm text-red-700">
                 {error}
               </div>
             )}
@@ -96,9 +109,11 @@ export function Login({ setPage, setUser }: LoginProps) {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-btn bg-primary text-white font-bold text-sm hover:opacity-90 transition-all disabled:opacity-60"
+              className="w-full py-3 rounded-btn bg-primary text-white font-bold text-sm hover:opacity-90 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              {loading ? 'Connexion…' : 'Se connecter →'}
+              {loading
+                ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Connexion…</>
+                : 'Se connecter →'}
             </button>
           </form>
 

@@ -5,7 +5,7 @@ import {
 import type { Candidate, PageName } from '../types';
 import { Avatar } from '../components/Avatar';
 import { ScoreBar } from '../components/ScoreBar';
-import { getJobPostings } from '../lib/storage';
+import { fetchJobPostings } from '../lib/jobPostingService';
 
 interface CompteRenduProps {
   candidate: Candidate | null;
@@ -86,7 +86,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
     setAiLoading(true);
     setAiError(null);
     // Use first published job posting if available, otherwise send candidate-only context
-    const postings = getJobPostings().filter(p => p.status === 'published');
+    const postings = (await fetchJobPostings()).filter(p => p.status === 'published');
     const jobPosting = postings[0] ?? null;
 
     try {

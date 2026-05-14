@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { PageName, ManagementStyle } from '../types';
-import { saveJobPosting } from '../lib/storage';
+import { createJobPosting } from '../lib/jobPostingService';
 
 interface RecruteurFichePosteProps {
   setPage: (p: PageName) => void;
@@ -134,7 +134,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
     if (!isFormValid) return;
     setSaving(true);
     try {
-      saveJobPosting({
+      await createJobPosting({
         recruiterId,
         company: companyName,
         title: form.title,

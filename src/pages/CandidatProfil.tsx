@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import type { PageName, AnalysisStatus, CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
+import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile } from '../lib/candidateService';
 
 interface CandidatProfilProps {
   setPage: (p: PageName) => void;
+  userId: string;
   onAnalysisComplete: (steps: AnalysisStatus) => void;
 }
 
@@ -54,7 +56,7 @@ function ScoreRing({ score, label }: { score: number; label: string }) {
 
 const MAX_RECORD_SECONDS = 90;
 
-export function CandidatProfil({ setPage, onAnalysisComplete }: CandidatProfilProps) {
+export function CandidatProfil({ setPage, userId, onAnalysisComplete }: CandidatProfilProps) {
   const [step, setStep] = useState(0);
 
   // CV state
@@ -114,7 +116,14 @@ export function CandidatProfil({ setPage, onAnalysisComplete }: CandidatProfilPr
           ? 'Clé API non configurée sur le serveur.'
           : 'Erreur d\'analyse. Réessayez.');
       } else {
-        setCvData(data as CvAnalysisData);
+        const parsed = data as CvAnalysisData;
+        setCvData(parsed);
+        // Upload raw file + save analysis to Supabase (fire-and-forget)
+        if (userId) {
+          uploadFile('cvs', userId, file, file.name.split('.').pop() ?? 'pdf').then(path => {
+            saveCvAnalysis(userId, parsed, path ?? undefined);
+          });
+        }
       }
     } catch {
       setCvError('Erreur réseau. Vérifiez votre connexion.');
@@ -185,7 +194,13 @@ export function CandidatProfil({ setPage, onAnalysisComplete }: CandidatProfilPr
       if (!res.ok) {
         setVideoError(data.error === 'AI_NOT_CONFIGURED' ? 'Clé API non configurée.' : 'Erreur d\'analyse audio.');
       } else {
-        setVideoData(data as VideoAnalysisData);
+        const parsed = data as VideoAnalysisData;
+        setVideoData(parsed);
+        if (userId) {
+          uploadFile('videos', userId, blob, 'webm').then(path => {
+            saveVideoAnalysis(userId, parsed, path ?? undefined);
+          });
+        }
       }
     } catch {
       setVideoError('Erreur réseau lors de l\'analyse audio.');
@@ -208,6 +223,12 @@ export function CandidatProfil({ setPage, onAnalysisComplete }: CandidatProfilPr
     const qData: QuestionnaireData | undefined = (q1 && q2 && q3 && q4)
       ? { managementPref: q1, environmentPref: q2, collaborationPref: q3, rhythmPref: q4 }
       : undefined;
+
+    // Persist questionnaire + preferences to Supabase
+    if (userId && qData) saveQuestionnaire(userId, qData);
+    if (userId) savePreferences(userId, {
+      location: localisation, salary: salaire, contractType: contrat, availability: dispo,
+    });
 
     onAnalysisComplete({
       cv:                !!cvData,
