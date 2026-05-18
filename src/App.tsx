@@ -18,7 +18,7 @@ const EMPTY_ANALYSIS: AnalysisStatus = { cv: false, questionnaire: false, video:
 
 export default function App() {
   const [page, setPage]                           = useState<PageName>('landing');
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [selectedCandidate] = useState<Candidate | null>(null);
   const [user, setUser]                           = useState<AuthUser | null>(null);
   const [planChoice, setPlanChoice]               = useState<'recruteur' | 'candidat' | null>(null);
   const [analysis, setAnalysis]                   = useState<AnalysisStatus>(EMPTY_ANALYSIS);
