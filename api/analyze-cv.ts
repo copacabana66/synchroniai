@@ -1,8 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
+import { createRequire } from 'module';
 import { chatComplete, extractJSON, getLLMConfig } from './lib/llm.js';
 import { guard, sanitizeText } from './lib/security.js';
+
+// createRequire : seule façon d'importer un module CJS (pdf-parse v1) depuis ESM ("type":"module")
+const _require = createRequire(import.meta.url);
+const pdfParse = _require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
 
 // Accept PDF binaries up to 6 MB (base64 ~4.5 MB PDF → ~6 MB string)
 export const config = { api: { bodyParser: { sizeLimit: '6mb' } } };
