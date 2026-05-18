@@ -12,6 +12,7 @@ import { CandidatProfil } from './pages/CandidatProfil';
 import { CandidatAvancement } from './pages/CandidatAvancement';
 import { CandidatTest } from './pages/CandidatTest';
 import { RecruteurFichePoste } from './pages/RecruteurFichePoste';
+import { RecruteurTeam } from './pages/RecruteurTeam';
 import { getSession, onAuthChange, authSignOut } from './lib/auth';
 
 const NO_NAVBAR: PageName[] = ['login', 'pricing', 'register'];
@@ -49,7 +50,7 @@ export default function App() {
 
   function navigateTo(p: PageName) {
     const protected_pages: PageName[] = [
-      'recruteur', 'recruteur-fiche-poste', 'compte-rendu',
+      'recruteur', 'recruteur-team', 'recruteur-fiche-poste', 'compte-rendu',
       'candidat', 'candidat-profil', 'candidat-avancement', 'candidat-test',
     ];
     if (protected_pages.includes(p) && !user) { setPage('login'); return; }
@@ -114,6 +115,9 @@ export default function App() {
         />
       )}
       {page === 'candidat-avancement' && <CandidatAvancement setPage={navigateTo} />}
+      {page === 'recruteur-team' && (
+        <RecruteurTeam setPage={navigateTo} recruiterId={user?.id ?? ''} />
+      )}
       {page === 'recruteur-fiche-poste' && (
         <RecruteurFichePoste
           setPage={navigateTo}

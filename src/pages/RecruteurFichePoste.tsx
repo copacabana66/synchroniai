@@ -128,7 +128,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
 
     if (!res.ok) {
       const errMap: Record<string, string> = {
-        AI_NOT_CONFIGURED: 'Service IA non configuré. Vérifiez les variables d\'environnement Vercel (GROQ_API_KEY).',
+        AI_NOT_CONFIGURED: 'Service intelligent non configuré. Vérifiez les variables d\'environnement Vercel (GROQ_API_KEY).',
         TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
       };
       setAiError(errMap[data.error as string] ?? 'Erreur lors de la génération. Passez en saisie manuelle.');
@@ -216,7 +216,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
         </button>
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold text-primary tracking-tight">Créer une fiche de poste</h1>
-          <p className="text-muted text-sm mt-1">Saisissez manuellement ou laissez l'IA rédiger pour vous.</p>
+          <p className="text-muted text-sm mt-1">Saisissez manuellement ou laissez Synchroni rédiger pour vous.</p>
         </div>
 
         {/* Mode toggle */}
@@ -235,7 +235,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
               mode === 'ai' ? 'bg-primary text-white' : 'text-muted hover:text-primary'
             }`}
           >
-            ✨ Générer avec l'IA
+            ✨ Générer avec Synchroni
           </button>
         </div>
 
@@ -245,8 +245,8 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-teal-light flex items-center justify-center text-xl flex-shrink-0">✨</div>
               <div>
-                <h3 className="font-bold text-primary">Assistant IA — Génération de fiche de poste</h3>
-                <p className="text-sm text-muted">Décrivez votre besoin en quelques phrases. L'IA complète toute la fiche pour vous.</p>
+                <h3 className="font-bold text-primary">Assistant Synchroni — Génération de fiche de poste</h3>
+                <p className="text-sm text-muted">Décrivez votre besoin en quelques phrases. Synchroni complète toute la fiche pour vous.</p>
               </div>
             </div>
 
@@ -299,7 +299,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
             </button>
 
             <p className="text-xs text-muted text-center mt-3">
-              Alimenté par Groq IA (Llama 3.3 70B) · La fiche générée reste entièrement modifiable
+              Alimenté par Synchroni Engine (Llama 3.3 70B) · La fiche générée reste entièrement modifiable
             </p>
           </div>
         )}
@@ -471,7 +471,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
             {activeSection === 4 && (
               <SectionCard title="Style de management" icon="🎯">
                 <p className="text-sm text-muted mb-4">
-                  Ces informations permettent au matching IA de rapprocher votre poste des candidats qui partagent vos valeurs managériales.
+                  Ces informations permettent au matching de rapprocher votre poste des candidats qui partagent vos valeurs managériales.
                 </p>
 
                 <Field label="Quel style décrit le mieux votre management ?" required>

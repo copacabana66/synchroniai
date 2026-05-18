@@ -83,7 +83,7 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
     })();
   }, [userId]);
 
-  // Lance le matching IA pour la fiche sélectionnée
+  // Lance le matching pour la fiche sélectionnée
   async function runMatching() {
     if (!selectedJob) return;
     const job = jobPostings.find(j => j.id === selectedJob);
@@ -163,14 +163,22 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
         <div className="flex flex-wrap items-start justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-extrabold text-primary tracking-tight">Tableau de bord Recruteur</h1>
-            <p className="text-muted text-sm mt-1">Profils réels — matchés par IA sur votre fiche de poste</p>
+            <p className="text-muted text-sm mt-1">Profils réels — matchés sur votre fiche de poste</p>
           </div>
-          <button
-            onClick={() => setPage('recruteur-fiche-poste')}
-            className="px-5 py-2.5 rounded-btn bg-teal text-primary font-bold text-sm hover:opacity-90 transition-all"
-          >
-            + Nouvelle fiche de poste
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setPage('recruteur-team')}
+              className="px-5 py-2.5 rounded-btn bg-violet text-white font-bold text-sm hover:opacity-90 transition-all"
+            >
+              🧬 ADN de mon équipe
+            </button>
+            <button
+              onClick={() => setPage('recruteur-fiche-poste')}
+              className="px-5 py-2.5 rounded-btn bg-teal text-white font-bold text-sm hover:opacity-90 transition-all"
+            >
+              + Nouvelle fiche de poste
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -220,7 +228,7 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
             {matching ? (
               <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> Analyse en cours…</>
             ) : (
-              <> Lancer le matching IA</>
+              <> Lancer le matching</>
             )}
           </button>
         </div>
@@ -310,7 +318,7 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
                     {isOpen && (
                       <div className="border-t border-border px-5 py-4 bg-bg">
                         {mc.globalScore === 0 ? (
-                          <p className="text-sm text-muted italic">Lance le matching IA pour voir les scores de compatibilité.</p>
+                          <p className="text-sm text-muted italic">Lance le matching pour voir les scores de compatibilité.</p>
                         ) : (
                           <>
                             <p className="text-sm text-primary mb-4">{mc.summary}</p>

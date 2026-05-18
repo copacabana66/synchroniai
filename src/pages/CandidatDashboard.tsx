@@ -23,7 +23,7 @@ const COMPLETION_ITEMS = [
   { key: 'questionnaire', label: 'Questionnaire' },
   { key: 'video',         label: 'Vidéo' },
   { key: 'assessment',    label: 'Test cognitif' },
-  { key: 'validation',    label: 'Validation IA' },
+  { key: 'validation',    label: 'Validation matching' },
 ];
 
 function scoreColor(s: number) {
@@ -85,7 +85,7 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
     });
   }, [userId, analysis.cvData]);
 
-  // Lance le matching IA pour toutes les offres
+  // Lance le matching pour toutes les offres
   async function runMatching() {
     if (!analysis.cvData || offers.length === 0) return;
     setMatching(true);
@@ -146,7 +146,7 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
           <p className="text-muted text-sm mt-1">
             {fullyComplete
               ? "Vos offres réelles, classées par compatibilité IA."
-              : 'Complétez votre profil pour débloquer le matching IA sur les vraies offres.'}
+              : 'Complétez votre profil pour débloquer le matching sur les vraies offres.'}
           </p>
         </div>
 
@@ -223,8 +223,8 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
                 className="px-4 py-2 rounded-btn bg-teal text-primary font-bold text-sm hover:opacity-90 disabled:opacity-40 flex items-center gap-2"
               >
                 {matching ? (
-                  <><span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin inline-block" /> Matching IA…</>
-                ) : scoredOffers.length > 0 ? '🔄 Relancer le matching' : '🎯 Lancer le matching IA'}
+                  <><span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin inline-block" /> Matching…</>
+                ) : scoredOffers.length > 0 ? '🔄 Relancer le matching' : '🎯 Lancer le matching'}
               </button>
             )}
           </div>
@@ -235,7 +235,7 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
                 🔒 Téléchargez votre CV pour débloquer les offres
               </p>
               <p className="text-white/60 text-sm mb-4">
-                Le matching IA compare votre CV aux offres réelles publiées par les recruteurs.
+                Le matching compare votre CV aux offres réelles publiées par les recruteurs.
               </p>
               <button
                 onClick={() => setPage('candidat-profil')}
@@ -289,36 +289,57 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
                       <div className="border-t border-border px-5 py-4 bg-bg">
                         {o.globalScore === 0 ? (
                           <p className="text-sm text-muted italic">
-                            Lancez le matching IA pour voir votre score de compatibilité sur cette offre.
+                            Lancez le matching pour voir votre score de compatibilité sur cette offre.
                           </p>
                         ) : (
                           <>
-                            <p className="text-sm text-primary mb-4">{o.summary}</p>
+                            {/* Vue candidat : score global + résumé seulement (pas le détail recruteur) */}
+                            <div className="flex items-center gap-4 mb-4 p-4 bg-gradient-to-br from-teal-light to-bg rounded-card border border-teal/15">
+                              <div className="text-center">
+                                <div className="text-4xl font-extrabold" style={{ color: scoreColor(o.globalScore) }}>{o.globalScore}%</div>
+                                <div className="text-xs text-muted font-semibold uppercase tracking-wider">Compatibilité</div>
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-sm text-primary leading-snug">{o.summary}</p>
+                              </div>
+                            </div>
+
+                            {/* Top 3 dimensions sans commentaire détaillé */}
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-4">
-                              {Object.entries(o.dimensions).map(([key, dim]) => (
-                                <div key={key} className="bg-card border border-border rounded-lg p-3">
-                                  <div className="flex justify-between items-center mb-1">
-                                    <span className="text-xs font-semibold text-primary capitalize">{key}</span>
-                                    <span className="text-xs font-bold" style={{ color: scoreColor(dim.score) }}>{dim.score}%</span>
+                              {Object.entries(o.dimensions)
+                                .sort(([, a], [, b]) => b.score - a.score)
+                                .slice(0, 3)
+                                .map(([key, dim]) => (
+                                  <div key={key} className="bg-card border border-border rounded-card p-3">
+                                    <div className="flex justify-between items-center mb-1.5">
+                                      <span className="text-xs font-semibold text-primary capitalize">{key}</span>
+                                      <span className="text-xs font-bold" style={{ color: scoreColor(dim.score) }}>{dim.score}%</span>
+                                    </div>
+                                    <div className="w-full h-1.5 bg-bg rounded-full overflow-hidden">
+                                      <div className="h-full rounded-full transition-all" style={{ width: `${dim.score}%`, backgroundColor: scoreColor(dim.score) }} />
+                                    </div>
                                   </div>
-                                  <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden mb-2">
-                                    <div className="h-full rounded-full" style={{ width: `${dim.score}%`, backgroundColor: scoreColor(dim.score) }} />
-                                  </div>
-                                  <p className="text-xs text-muted leading-snug">{dim.comment}</p>
-                                </div>
-                              ))}
+                                ))}
                             </div>
                           </>
                         )}
 
-                        {/* Détails offre */}
+                        {/* Détails offre publique uniquement */}
                         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs pt-3 border-t border-border">
                           {o.contractType && <div><span className="font-semibold text-primary">Contrat :</span> <span className="text-muted">{o.contractType}</span></div>}
                           {(o.salaryMin || o.salaryMax) && <div><span className="font-semibold text-primary">Salaire :</span> <span className="text-muted">{o.salaryMin}{o.salaryMax ? ' – ' + o.salaryMax : ''} €</span></div>}
                           {o.managementStyle && <div><span className="font-semibold text-primary">Management :</span> <span className="text-muted capitalize">{o.managementStyle}</span></div>}
-                          {o.teamProfile && <div className="col-span-2"><span className="font-semibold text-primary">Équipe :</span> <span className="text-muted">{o.teamProfile}</span></div>}
-                          {o.description && <div className="col-span-2 mt-2"><span className="font-semibold text-primary">Description :</span> <span className="text-muted">{o.description}</span></div>}
+                          {o.description && <div className="col-span-2 mt-2"><span className="font-semibold text-primary">Description :</span> <span className="text-muted">{o.description.slice(0, 280)}{o.description.length > 280 ? '…' : ''}</span></div>}
                         </div>
+
+                        {o.globalScore >= 70 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); /* TODO: postuler */ }}
+                            className="btn-primary w-full mt-4"
+                          >
+                            Postuler à cette offre →
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

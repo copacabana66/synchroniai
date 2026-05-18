@@ -16,7 +16,7 @@ const candidatFeatures = [
 ];
 
 const recruteurCarteFeatures = [
-  'Analyse IA d\'un candidat à la fois',
+  'Analyse compatibilité d\'un candidat à la fois',
   'Radar de compatibilité 7 dimensions',
   'Compte rendu PDF téléchargeable',
   'Recommandation explicable (AI Act)',

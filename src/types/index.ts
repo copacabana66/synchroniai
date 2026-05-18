@@ -60,6 +60,7 @@ export type PageName =
   | 'pricing'
   | 'register'
   | 'recruteur'
+  | 'recruteur-team'
   | 'recruteur-fiche-poste'
   | 'compte-rendu'
   | 'candidat'

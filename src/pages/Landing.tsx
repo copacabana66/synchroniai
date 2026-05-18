@@ -57,22 +57,52 @@ const benefits = {
   ],
 };
 
+const ROTATING_WORDS = ['écoute.', 'comprend.', 'respecte.', 'révèle.', 'aligne.'];
+
+const TICKER_PHRASES = [
+  '— Compatibilité humaine —',
+  '— ADN d\'équipe —',
+  '— Personnalité Big Five —',
+  '— Conforme AI Act —',
+  '— Zéro biais —',
+  '— Matching explicable —',
+];
+
 export function Landing({ setPage }: LandingProps) {
   return (
     <div className="min-h-screen">
-      {/* HERO */}
-      <section className="bg-primary py-20 px-8 text-center">
-        <span className="inline-block mb-5 px-4 py-1.5 rounded-full bg-teal/15 border border-teal/30 text-teal text-xs font-bold tracking-widest uppercase">
-          ✦ CONFORME AI ACT EUROPÉEN — MATCHING EXPLICABLE
-        </span>
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold text-white tracking-tight leading-tight max-w-2xl mx-auto mb-5">
-          Le recrutement qui réduit{' '}
-          <span className="text-teal">le turnover</span>
-        </h1>
-        <p className="text-white/60 text-lg max-w-xl mx-auto mb-12">
-          Matching professionnel augmenté par IA sur 7 dimensions. Transparent,
-          explicable, centré humain.
-        </p>
+      {/* HERO — premium mesh background avec mots animés */}
+      <section className="relative overflow-hidden bg-primary py-24 px-6 grain">
+        {/* Orbes de couleur en arrière-plan */}
+        <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-teal/20 blur-3xl animate-float pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-coral/15 blur-3xl animate-float pointer-events-none" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-0 right-1/4 w-64 h-64 rounded-full bg-violet/15 blur-3xl animate-float pointer-events-none" style={{ animationDelay: '4s' }} />
+
+        <div className="relative max-w-5xl mx-auto text-center">
+          <span className="inline-block mb-6 px-4 py-1.5 rounded-pill bg-teal/15 border border-teal/30 text-teal text-xs font-bold tracking-widest uppercase animate-fade-in opacity-0-init" style={{ animationFillMode: 'forwards' }}>
+            ✦ Conforme AI Act européen
+          </span>
+
+          <h1 className="text-display text-white mb-6 animate-fade-up opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '80ms' }}>
+            Le recrutement qui<br />
+            <span className="inline-block relative h-[1.05em] overflow-hidden align-baseline" style={{ minWidth: '5ch' }}>
+              {ROTATING_WORDS.map((word, i) => (
+                <span
+                  key={word}
+                  className="absolute left-0 top-0 bg-gradient-to-r from-teal via-sage to-teal bg-clip-text text-transparent animate-word-cycle"
+                  style={{ animationDelay: `${i * 1.6}s`, animationDuration: `${ROTATING_WORDS.length * 1.6}s` }}
+                >
+                  {word}
+                </span>
+              ))}
+              <span className="invisible">{ROTATING_WORDS[0]}</span>
+            </span>
+          </h1>
+
+          <p className="text-white/70 text-lg max-w-2xl mx-auto mb-12 animate-fade-up opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '180ms' }}>
+            Matching organisationnel transparent — compétences, personnalité, valeurs et ADN d'équipe.
+            Pour des recrutements qui durent vraiment.
+          </p>
 
         {/* Three-element hero row */}
         <div className="flex items-center justify-center gap-0 flex-wrap max-w-3xl mx-auto">
@@ -132,10 +162,20 @@ export function Landing({ setPage }: LandingProps) {
               Identifiez les candidats qui durent. Matching organisationnel en
               7 dimensions expliquées.
             </p>
-            <span className="inline-block px-5 py-2.5 rounded-btn bg-orange text-white font-bold text-sm">
+            <span className="inline-block px-5 py-2.5 rounded-btn bg-coral text-white font-bold text-sm">
               Accéder →
             </span>
           </button>
+        </div>
+        </div>
+
+        {/* Ticker de phrases défilantes en bas du hero */}
+        <div className="relative mt-16 overflow-hidden border-t border-white/10 pt-6">
+          <div className="flex animate-marquee whitespace-nowrap" style={{ width: 'max-content' }}>
+            {[...TICKER_PHRASES, ...TICKER_PHRASES, ...TICKER_PHRASES].map((phrase, i) => (
+              <span key={i} className="text-white/30 text-sm font-medium mx-6 tracking-wider">{phrase}</span>
+            ))}
+          </div>
         </div>
       </section>
 

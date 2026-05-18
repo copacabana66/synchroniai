@@ -138,7 +138,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
 
     if (!res.ok) {
       const errMap: Record<string, string> = {
-        AI_NOT_CONFIGURED: 'Service IA non configuré. Vérifiez les variables d\'environnement Vercel.',
+        AI_NOT_CONFIGURED: 'Service intelligent non configuré. Vérifiez les variables d\'environnement Vercel.',
         TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
       };
       setAiError(errMap[data.error as string] ?? `Erreur lors de la génération du rapport (${data.error ?? res.status}).`);
@@ -164,7 +164,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
             <div className="flex items-center gap-3">
               <span className="text-2xl">✨</span>
               <div>
-                <p className="font-bold text-primary text-sm">Générer le compte rendu avec Groq IA</p>
+                <p className="font-bold text-primary text-sm">Générer le compte rendu avec Synchroni Engine</p>
                 <p className="text-xs text-muted">Analyse 7 dimensions, points forts/écarts, questions d'entretien suggérées.</p>
               </div>
             </div>
@@ -175,7 +175,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
             >
               {aiLoading
                 ? <><span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />Analyse…</>
-                : '✨ Analyser avec l\'IA'}
+                : '✨ Analyser avec Synchroni l\'IA'}
             </button>
           </div>
         )}
@@ -188,7 +188,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
 
         {aiReport && (
           <div className="bg-teal-light border border-teal/30 rounded-xl p-3 mb-5 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-teal">✅ Compte rendu généré par Groq IA</p>
+            <p className="text-sm font-semibold text-teal">✅ Compte rendu généré par Synchroni Engine</p>
             <button
               onClick={() => { setAiReport(null); setAiError(null); }}
               className="text-xs text-muted hover:text-primary border border-border rounded px-2 py-1"
@@ -247,7 +247,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
 
         {/* Analysis */}
         <div className="bg-card rounded-card border border-border p-6 mb-6">
-          <h2 className="text-base font-bold text-primary mb-3">Analyse {aiReport ? 'IA (Groq)' : 'IA'}</h2>
+          <h2 className="text-base font-bold text-primary mb-3">Analyse {aiReport ? 'Synchroni' : 'compatibilité'}</h2>
           <p className="text-sm text-primary leading-relaxed mb-5">{summary}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-success-light rounded-xl p-4">
@@ -274,7 +274,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
         {aiReport?.suggestedQuestions && aiReport.suggestedQuestions.length > 0 && (
           <div className="bg-card rounded-card border border-border p-6 mb-6">
             <h2 className="text-base font-bold text-primary mb-3">💬 Questions d'entretien suggérées</h2>
-            <p className="text-xs text-muted mb-3">Générées par l'IA à partir des écarts identifiés dans ce profil.</p>
+            <p className="text-xs text-muted mb-3">Générées par l'algorithme à partir des écarts identifiés dans ce profil.</p>
             <ol className="space-y-2">
               {aiReport.suggestedQuestions.map((q, i) => (
                 <li key={i} className="flex gap-3">
@@ -291,7 +291,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
           style={{ background: recoBg, borderColor: recoBorder, borderWidth: '0 0 0 4px', borderStyle: 'solid' }}
         >
           <p className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: recoBorder }}>
-            RECOMMANDATION IA — {recoLabel}
+            RECOMMANDATION — {recoLabel}
           </p>
           <p className="font-bold text-primary leading-relaxed mb-3">{reco}</p>
           <p className="text-xs text-muted italic">

@@ -97,7 +97,29 @@ create policy "candidates_see_published" on job_postings for select
   using (status = 'published');
 
 
--- 3. Buckets de stockage
+-- 3. Équipes recruteur (Team Discovery — ADN d'entreprise)
+create table if not exists recruiter_teams (
+  id                  uuid primary key default gen_random_uuid(),
+  recruiter_id        uuid references auth.users(id) on delete cascade,
+  team_name           text not null,
+  team_description    text,
+  team_members        jsonb,             -- [{name, role, bigFive?, traits}]
+  collective_dna      jsonb,             -- résultat de l'analyse : profils dominants, valeurs, etc.
+  missing_profile     jsonb,             -- profil idéal manquant suggéré
+  analysis_status     text not null default 'pending' check (analysis_status in ('pending','done','error')),
+  created_at          timestamptz default now(),
+  updated_at          timestamptz default now()
+);
+
+alter table recruiter_teams enable row level security;
+
+drop policy if exists "team_own"       on recruiter_teams;
+create policy "team_own" on recruiter_teams for all
+  using (auth.uid() = recruiter_id)
+  with check (auth.uid() = recruiter_id);
+
+
+-- 4. Buckets de stockage
 insert into storage.buckets (id, name, public) values ('cvs', 'cvs', false)
   on conflict (id) do nothing;
 

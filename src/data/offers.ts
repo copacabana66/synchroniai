@@ -54,7 +54,7 @@ export const appSteps: AppStep[] = [
     detail: 'Votre dossier a bien été reçu par InnovateSud.',
   },
   {
-    label: 'Analyse IA en cours',
+    label: 'Analyse compatibilité en cours',
     done: true,
     active: false,
     date: '14 mai 2026',

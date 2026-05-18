@@ -201,7 +201,7 @@ export function CandidatTest({ setPage, userId, onComplete }: Props) {
                 <span className="text-2xl">🔒</span>
                 <div>
                   <h3 className="font-bold text-primary text-sm">Données protégées</h3>
-                  <p className="text-xs text-muted mt-1">Vos réponses sont privées. Seul vous y avez accès, vos scores enrichissent le matching IA pour les offres pertinentes.</p>
+                  <p className="text-xs text-muted mt-1">Vos réponses sont privées. Seul vous y avez accès, vos scores enrichissent le matching pour les offres pertinentes.</p>
                 </div>
               </div>
             </div>

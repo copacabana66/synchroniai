@@ -162,12 +162,12 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
     // ── Étape 4 : résultat ───────────────────────────────────────────────────
     if (!res.ok) {
       const errorMap: Record<string, string> = {
-        AI_NOT_CONFIGURED: 'Service IA non configuré. Contactez le support.',
+        AI_NOT_CONFIGURED: 'Service intelligent non configuré. Contactez le support.',
         FILE_TOO_LARGE:    'PDF trop volumineux. Compressez-le (max 4,5 MB).',
         PDF_PARSE_ERROR:   'Le PDF est illisible ou corrompu. Régénérez-le depuis Word ou LibreOffice.',
         PDF_EMPTY:         'Le PDF est vide.',
         EMPTY_CV:          'Ce PDF ne contient pas de texte lisible. Utilisez un PDF généré par Word ou LibreOffice (pas un scan).',
-        EMPTY_RESPONSE:    "L'IA n'a pas pu analyser ce CV. Essayez un autre fichier.",
+        EMPTY_RESPONSE:    "Le service n'a pas pu analyser ce CV. Essayez un autre fichier.",
         TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
       };
       setCvError(errorMap[data.error as string] ?? `Erreur : ${data.detail ?? data.error ?? `HTTP ${res.status}`}`);
@@ -277,7 +277,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
 
     if (!res.ok) {
       const errMap: Record<string, string> = {
-        AI_NOT_CONFIGURED: 'Service IA non configuré.',
+        AI_NOT_CONFIGURED: 'Service intelligent non configuré.',
         TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute.',
         AUDIO_TOO_LARGE:   'Audio trop volumineux. Enregistrement plus court requis.',
         LLM_TIMEOUT:       'L\'analyse a pris trop de temps. Réessayez avec un enregistrement plus court (30-60s).',
@@ -356,7 +356,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
         {step === 0 && (
           <div>
             <h2 className="text-lg font-bold text-primary mb-1">Importez votre CV</h2>
-            <p className="text-sm text-muted mb-4">L'IA Groq extrait vos compétences réelles — aucune donnée inventée.</p>
+            <p className="text-sm text-muted mb-4">Notre algorithme extrait vos compétences réelles — aucune donnée inventée.</p>
 
             {/* Drop zone — click ou glisser-déposer */}
             <label
@@ -382,7 +382,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
                 <>
                   <div className="w-10 h-10 border-4 border-teal/20 border-t-teal rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-primary font-semibold">Analyse en cours…</p>
-                  <p className="text-muted text-sm mt-1">Groq IA analyse votre CV</p>
+                  <p className="text-muted text-sm mt-1">Synchroni Engine analyse votre CV</p>
                 </>
               ) : cvData ? (
                 <>
@@ -436,7 +436,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
                   </div>
                   {cvData.summary && (
                     <div>
-                      <span className="text-xs font-semibold text-muted block mb-1">Synthèse IA</span>
+                      <span className="text-xs font-semibold text-muted block mb-1">Synthèse compatibilité</span>
                       <p className="text-xs text-primary leading-relaxed">{cvData.summary}</p>
                     </div>
                   )}
@@ -482,7 +482,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
         {step === 2 && (
           <div>
             <h2 className="text-lg font-bold text-primary mb-1">Présentation audio</h2>
-            <p className="text-sm text-muted mb-4">Enregistrez jusqu'à 90 secondes. L'IA analyse uniquement votre expression orale — pas votre apparence.</p>
+            <p className="text-sm text-muted mb-4">Enregistrez jusqu'à 90 secondes. Synchroni analyse uniquement votre expression orale — pas votre apparence.</p>
 
             {/* Recorder */}
             {!videoData && (
@@ -566,7 +566,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
             )}
 
             <div className="rounded-xl p-4 border border-yellow-200 mb-6" style={{ background: '#FEF5E0' }}>
-              <p className="font-semibold text-sm mb-1" style={{ color: '#D48A12' }}>⚠ Ce que l'IA analyse</p>
+              <p className="font-semibold text-sm mb-1" style={{ color: '#D48A12' }}>⚠ Ce qui est analysé</p>
               <p className="text-sm text-primary"><strong>Analysé :</strong> Clarté d'expression, structure, aisance à l'oral.</p>
               <p className="text-sm text-primary mt-1"><strong>Non analysé :</strong> Apparence, genre, origine, âge. Conformité AI Act totale.</p>
             </div>

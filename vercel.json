@@ -4,6 +4,7 @@
     "api/generate-report.ts":     { "maxDuration": 60 },
     "api/analyze-cv.ts":          { "maxDuration": 60 },
     "api/match-candidates.ts":    { "maxDuration": 30 },
+    "api/analyze-team.ts":        { "maxDuration": 30 },
     "api/generate-job-posting.ts":{ "maxDuration": 30 }
   }
 }

@@ -69,7 +69,7 @@ export const testimonials: Testimonial[] = [
     title: 'DRH, Occitanie Numérique',
     location: 'Perpignan',
     quote:
-      'Le reporting IA explicable est exactement ce dont nos auditeurs réglementaires avaient besoin. Simple, robuste, auditable.',
+      'Le reporting matching explicable est exactement ce dont nos auditeurs réglementaires avaient besoin. Simple, robuste, auditable.',
     kpi: 'Audit RH validé',
     accentColor: '#6851C7',
   },
