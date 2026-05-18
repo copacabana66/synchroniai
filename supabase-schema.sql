@@ -26,8 +26,21 @@ create table if not exists candidate_profiles (
   analysis_cv            boolean not null default false,
   analysis_questionnaire boolean not null default false,
   analysis_video         boolean not null default false,
+  analysis_assessment    boolean not null default false,
+  -- Tests cognitif + personnalité (Big Five)
+  assessment_cognitive   jsonb,            -- scores par dimension + total
+  assessment_personality jsonb,            -- Big Five (OCEAN) + type comportemental
+  assessment_responses   jsonb,            -- toutes les réponses brutes (audit)
+  assessment_completed_at timestamptz,
   updated_at             timestamptz default now()
 );
+
+-- Migration : colonnes ajoutées sur tables existantes
+alter table candidate_profiles add column if not exists analysis_assessment     boolean not null default false;
+alter table candidate_profiles add column if not exists assessment_cognitive    jsonb;
+alter table candidate_profiles add column if not exists assessment_personality  jsonb;
+alter table candidate_profiles add column if not exists assessment_responses    jsonb;
+alter table candidate_profiles add column if not exists assessment_completed_at timestamptz;
 
 alter table candidate_profiles enable row level security;
 

@@ -1,5 +1,5 @@
 import { supabase, isConfigured } from './supabase';
-import type { CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
+import type { CvAnalysisData, VideoAnalysisData, QuestionnaireData, AssessmentData } from '../types';
 
 export interface ProfileRow {
   id: string;
@@ -23,6 +23,12 @@ export interface ProfileRow {
   analysis_cv: boolean;
   analysis_questionnaire: boolean;
   analysis_video: boolean;
+  analysis_assessment?: boolean;
+  // Assessment (jsonb columns — Supabase renvoie directement les objets)
+  assessment_cognitive?: AssessmentData['cognitive'];
+  assessment_personality?: AssessmentData['personality'];
+  assessment_responses?: Record<string, number>;
+  assessment_completed_at?: string;
   updated_at?: string;
 }
 
@@ -84,6 +90,16 @@ export async function saveQuestionnaire(userId: string, q: QuestionnaireData): P
     collaboration_pref:     q.collaborationPref,
     rhythm_pref:            q.rhythmPref,
     analysis_questionnaire: true,
+  });
+}
+
+export async function saveAssessment(userId: string, assessment: AssessmentData, responses: Record<string, number>): Promise<void> {
+  await upsertProfile(userId, {
+    assessment_cognitive:    assessment.cognitive,
+    assessment_personality:  assessment.personality,
+    assessment_responses:    responses,
+    assessment_completed_at: assessment.completedAt,
+    analysis_assessment:     true,
   });
 }
 

@@ -628,10 +628,13 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex flex-wrap gap-3 mt-6">
               <button onClick={() => setStep(2)} className="px-5 py-2.5 rounded-btn border border-border text-muted text-sm font-semibold hover:bg-bg transition-all">← Retour</button>
+              <button onClick={() => { finish(); setPage('candidat-test'); }} className="px-6 py-3 rounded-btn bg-purple-600 text-white font-bold text-sm hover:opacity-90 transition-all">
+                🧠 Passer le test cognitif
+              </button>
               <button onClick={finish} className="px-6 py-3 rounded-btn bg-primary text-white font-bold text-sm hover:opacity-90 transition-all">
-                ✓ Finaliser et voir mes offres
+                ✓ Finaliser sans test
               </button>
             </div>
           </div>

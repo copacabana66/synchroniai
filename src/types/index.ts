@@ -64,7 +64,8 @@ export type PageName =
   | 'compte-rendu'
   | 'candidat'
   | 'candidat-profil'
-  | 'candidat-avancement';
+  | 'candidat-avancement'
+  | 'candidat-test';
 
 export type UserRole = 'recruteur' | 'candidat' | null;
 
@@ -107,6 +108,23 @@ export interface QuestionnaireData {
   rhythmPref: string;
 }
 
+export interface AssessmentData {
+  cognitive: {
+    total: number;                         // score sur 100
+    byCategory: Record<string, number>;    // % par catégorie
+    correctAnswers: number;
+    totalQuestions: number;
+  };
+  personality: {
+    bigFive: { O: number; C: number; E: number; A: number; N: number };  // 1-5
+    type: string;
+    description: string;
+    strengths: string[];
+    bestEnvironments: string[];
+  };
+  completedAt: string;
+}
+
 export interface AnalysisStatus {
   cv: boolean;
   cvData?: CvAnalysisData;
@@ -114,6 +132,8 @@ export interface AnalysisStatus {
   questionnaireData?: QuestionnaireData;
   video: boolean;
   videoData?: VideoAnalysisData;
+  assessment?: boolean;
+  assessmentData?: AssessmentData;
 }
 
 export type RecruteurPlan = 'carte' | 'pro';

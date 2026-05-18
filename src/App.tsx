@@ -10,6 +10,7 @@ import { CompteRendu } from './pages/CompteRendu';
 import { CandidatDashboard } from './pages/CandidatDashboard';
 import { CandidatProfil } from './pages/CandidatProfil';
 import { CandidatAvancement } from './pages/CandidatAvancement';
+import { CandidatTest } from './pages/CandidatTest';
 import { RecruteurFichePoste } from './pages/RecruteurFichePoste';
 import { getSession, onAuthChange, authSignOut } from './lib/auth';
 
@@ -49,7 +50,7 @@ export default function App() {
   function navigateTo(p: PageName) {
     const protected_pages: PageName[] = [
       'recruteur', 'recruteur-fiche-poste', 'compte-rendu',
-      'candidat', 'candidat-profil', 'candidat-avancement',
+      'candidat', 'candidat-profil', 'candidat-avancement', 'candidat-test',
     ];
     if (protected_pages.includes(p) && !user) { setPage('login'); return; }
     setPage(p);
@@ -95,6 +96,14 @@ export default function App() {
           setPage={navigateTo}
           analysisComplete={analysisComplete}
           analysis={analysis}
+          userId={user?.id ?? ''}
+        />
+      )}
+      {page === 'candidat-test' && (
+        <CandidatTest
+          setPage={navigateTo}
+          userId={user?.id ?? ''}
+          onComplete={(data) => setAnalysis(a => ({ ...a, assessment: true, assessmentData: data }))}
         />
       )}
       {page === 'candidat-profil' && (
