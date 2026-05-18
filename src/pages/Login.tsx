@@ -56,11 +56,9 @@ export function Login({ setPage, setUser }: LoginProps) {
       <div className="w-full max-w-md">
 
         <div className="flex flex-col items-center mb-8">
-          <button onClick={() => setPage('landing')} className="flex items-center gap-2.5 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-teal flex items-center justify-center">
-              <MatchingLogo size={26} color="#1A3E6E" animated={false} />
-            </div>
-            <span className="font-bold text-xl text-primary tracking-tight">SynchroniAI</span>
+          <button onClick={() => setPage('landing')} className="flex items-center gap-2 mb-6">
+            <MatchingLogo size={36} variant="gradient" animated={false} />
+            <span className="font-extrabold text-xl text-primary tracking-tight">SynchroniAI</span>
           </button>
           <h1 className="text-2xl font-extrabold text-primary tracking-tight mb-1">Bon retour !</h1>
           <p className="text-muted text-sm">Connectez-vous à votre espace personnel</p>

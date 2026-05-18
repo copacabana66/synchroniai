@@ -52,11 +52,9 @@ export function Pricing({ setPage, setPlanChoice }: PricingProps) {
     <div className="min-h-screen bg-bg">
       {/* Header */}
       <div className="bg-primary py-14 px-8 text-center">
-        <button onClick={() => setPage('landing')} className="flex items-center gap-2.5 mx-auto mb-8">
-          <div className="w-8 h-8 rounded-lg bg-teal flex items-center justify-center">
-            <MatchingLogo size={22} color="#1A3E6E" animated={false} />
-          </div>
-          <span className="font-bold text-lg text-white tracking-tight">SynchroniAI</span>
+        <button onClick={() => setPage('landing')} className="flex items-center gap-2 mx-auto mb-8">
+          <MatchingLogo size={32} variant="white" animated={false} />
+          <span className="font-extrabold text-lg text-white tracking-tight">SynchroniAI</span>
         </button>
         <span className="inline-block mb-4 px-4 py-1.5 rounded-full bg-teal/15 border border-teal/30 text-teal text-xs font-bold tracking-widest uppercase">
           TARIFS TRANSPARENTS
