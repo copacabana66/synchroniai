@@ -3,10 +3,10 @@ import type { PageName, AnalysisStatus, CvAnalysisData, VideoAnalysisData, Quest
 import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile } from '../lib/candidateService';
 import * as pdfjs from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
+// Import worker from local package — no CDN dependency, no CSP issue
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-// Use CDN worker — avoids Vite bundler complexity
-pdfjs.GlobalWorkerOptions.workerSrc =
-  `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 async function extractPdfText(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
@@ -129,45 +129,78 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
     setCvLoading(true);
     setCvData(null);
 
+    // ── Étape 1 : extraction du texte PDF (erreur isolée) ────────────────────
+    let cvText = '';
     try {
-      // Extract text from PDF in the browser — works with any LLM (no multimodal needed)
-      const cvText = await extractPdfText(file);
-      if (!cvText || cvText.length < 50) {
-        setCvError('Impossible de lire ce PDF. Essayez un CV généré par Word ou un outil en ligne.');
-        setCvLoading(false);
-        return;
-      }
-      const res = await fetch('/api/analyze-cv', {
+      cvText = await extractPdfText(file);
+    } catch (e) {
+      console.error('[CV] Erreur extraction PDF :', e);
+      setCvError('Impossible de lire ce PDF. Le fichier est peut-être corrompu ou protégé par un mot de passe.');
+      setCvLoading(false);
+      return;
+    }
+
+    if (!cvText || cvText.length < 50) {
+      setCvError('Ce PDF ne contient pas de texte lisible. Utilisez un PDF généré par Word, LibreOffice ou un outil en ligne.');
+      setCvLoading(false);
+      return;
+    }
+
+    // ── Étape 2 : appel API (timeout 45s, erreurs réseau isolées) ────────────
+    let res: Response;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45_000);
+      res = await fetch('/api/analyze-cv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ cvText }),
+        signal: controller.signal,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        const errorMap: Record<string, string> = {
-          AI_NOT_CONFIGURED: 'Service IA non configuré. Contactez le support.',
-          FORMAT_NOT_SUPPORTED: 'Format non supporté. Utilisez un PDF.',
-          FILE_TOO_LARGE: 'PDF trop volumineux. Essayez de le compresser (max ~4 MB).',
-          EMPTY_RESPONSE: 'L\'IA n\'a pas pu lire ce PDF. Essayez un autre fichier.',
-          CONTENT_BLOCKED: 'Contenu non analysable. Vérifiez le fichier.',
-          TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
-        };
-        setCvError(errorMap[data.error] ?? `Erreur : ${data.detail ?? data.error ?? 'Inconnue'}`);
-      } else {
-        const parsed = data as CvAnalysisData;
-        setCvData(parsed);
-        // Upload raw file + save analysis to Supabase (fire-and-forget)
-        if (userId) {
-          uploadFile('cvs', userId, file, file.name.split('.').pop() ?? 'pdf').then(path => {
-            saveCvAnalysis(userId, parsed, path ?? undefined);
-          });
-        }
-      }
-    } catch {
-      setCvError('Erreur réseau. Vérifiez votre connexion.');
-    } finally {
+      clearTimeout(timeout);
+    } catch (e) {
+      const isTimeout = e instanceof Error && e.name === 'AbortError';
+      console.error('[CV] Erreur réseau :', e);
+      setCvError(isTimeout
+        ? 'L\'analyse a pris trop de temps (>45s). Réessayez dans quelques instants.'
+        : 'Impossible de joindre le serveur. Vérifiez votre connexion internet.');
       setCvLoading(false);
+      return;
     }
+
+    // ── Étape 3 : parsing JSON (erreur isolée si Vercel renvoie du HTML) ─────
+    let data: Record<string, unknown>;
+    try {
+      data = await res.json() as Record<string, unknown>;
+    } catch {
+      console.error('[CV] Réponse non-JSON, statut HTTP :', res.status);
+      setCvError(`Réponse invalide du serveur (HTTP ${res.status}). Réessayez dans quelques instants.`);
+      setCvLoading(false);
+      return;
+    }
+
+    // ── Étape 4 : traitement du résultat ─────────────────────────────────────
+    if (!res.ok) {
+      const errorMap: Record<string, string> = {
+        AI_NOT_CONFIGURED: 'Service IA non configuré. Contactez le support.',
+        FORMAT_NOT_SUPPORTED: 'Format non supporté. Utilisez un PDF.',
+        FILE_TOO_LARGE: 'PDF trop volumineux. Compressez-le (max ~4 MB).',
+        EMPTY_RESPONSE: 'L\'IA n\'a pas pu analyser ce CV. Essayez un autre fichier.',
+        CONTENT_BLOCKED: 'Contenu non analysable. Vérifiez le fichier.',
+        TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
+      };
+      setCvError(errorMap[data.error as string] ?? `Erreur serveur : ${data.detail ?? data.error ?? `HTTP ${res.status}`}`);
+    } else {
+      const parsed = data as unknown as CvAnalysisData;
+      setCvData(parsed);
+      if (userId) {
+        uploadFile('cvs', userId, file, file.name.split('.').pop() ?? 'pdf').then(path => {
+          saveCvAnalysis(userId, parsed, path ?? undefined);
+        });
+      }
+    }
+
+    setCvLoading(false);
   }
 
 
@@ -208,32 +241,76 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
   async function analyzeAudio(mimeType: string) {
     setVideoLoading(true);
     setVideoData(null);
+    setVideoError(null);
+
+    const blob = new Blob(audioChunksRef.current, { type: mimeType });
+    if (blob.size > 10 * 1024 * 1024) {
+      setVideoError('Enregistrement trop long. Maximum 90 secondes.');
+      setVideoLoading(false);
+      return;
+    }
+
+    // Étape 1 : encodage base64 (erreur isolée)
+    let base64: string;
     try {
-      const blob = new Blob(audioChunksRef.current, { type: mimeType });
-      if (blob.size > 10 * 1024 * 1024) { setVideoError('Enregistrement trop long. Maximum 90 secondes.'); return; }
-      const base64 = await blobToBase64(blob);
-      const res = await fetch('/api/transcribe-video', {
+      base64 = await blobToBase64(blob);
+    } catch (e) {
+      console.error('[Audio] Erreur encodage base64 :', e);
+      setVideoError('Erreur lors de la préparation de l\'audio. Réenregistrez.');
+      setVideoLoading(false);
+      return;
+    }
+
+    // Étape 2 : appel API (timeout 60s — transcription peut être longue)
+    let res: Response;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60_000);
+      res = await fetch('/api/transcribe-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ audioBase64: base64, mimeType }),
+        signal: controller.signal,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setVideoError(data.error === 'AI_NOT_CONFIGURED' ? 'Service IA non configuré.' : data.error === 'TOO_MANY_REQUESTS' ? 'Trop de requêtes, attendez une minute.' : 'Erreur d\'analyse audio.');
-      } else {
-        const parsed = data as VideoAnalysisData;
-        setVideoData(parsed);
-        if (userId) {
-          uploadFile('videos', userId, blob, 'webm').then(path => {
-            saveVideoAnalysis(userId, parsed, path ?? undefined);
-          });
-        }
-      }
-    } catch {
-      setVideoError('Erreur réseau lors de l\'analyse audio.');
-    } finally {
+      clearTimeout(timeout);
+    } catch (e) {
+      const isTimeout = e instanceof Error && e.name === 'AbortError';
+      console.error('[Audio] Erreur réseau :', e);
+      setVideoError(isTimeout
+        ? 'La transcription a pris trop de temps. Réessayez avec un enregistrement plus court.'
+        : 'Impossible de joindre le serveur. Vérifiez votre connexion.');
       setVideoLoading(false);
+      return;
     }
+
+    // Étape 3 : parsing JSON (erreur isolée)
+    let data: Record<string, unknown>;
+    try {
+      data = await res.json() as Record<string, unknown>;
+    } catch {
+      console.error('[Audio] Réponse non-JSON, statut :', res.status);
+      setVideoError(`Réponse invalide du serveur (HTTP ${res.status}). Réessayez.`);
+      setVideoLoading(false);
+      return;
+    }
+
+    if (!res.ok) {
+      const errMap: Record<string, string> = {
+        AI_NOT_CONFIGURED: 'Service IA non configuré.',
+        TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute.',
+        AUDIO_TOO_LARGE: 'Audio trop volumineux. Enregistrement plus court requis.',
+      };
+      setVideoError(errMap[data.error as string] ?? `Erreur d'analyse audio (${data.error ?? res.status}).`);
+    } else {
+      const parsed = data as unknown as VideoAnalysisData;
+      setVideoData(parsed);
+      if (userId) {
+        uploadFile('videos', userId, blob, 'webm').then(path => {
+          saveVideoAnalysis(userId, parsed, path ?? undefined);
+        });
+      }
+    }
+    setVideoLoading(false);
   }
 
   function blobToBase64(blob: Blob): Promise<string> {

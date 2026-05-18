@@ -95,39 +95,61 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
     }
     setAiLoading(true);
     setAiError(null);
+
+    // Appel API avec timeout 45s
+    let res: Response;
     try {
-      const res = await fetch('/api/generate-job-posting', {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 45_000);
+      res = await fetch('/api/generate-job-posting', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: aiPrompt }),
+        signal: controller.signal,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        if (data.error === 'AI_NOT_CONFIGURED') {
-          setAiError('Service IA non configuré. Vérifiez les variables d\'environnement Vercel (GROQ_API_KEY).');
-        } else {
-          setAiError('Erreur lors de la génération. Réessayez ou passez en saisie manuelle.');
-        }
-        return;
-      }
-      setForm({
-        title:           data.title           ?? '',
-        location:        data.location        ?? '',
-        contractType:    data.contractType    ?? '',
-        salaryMin:       data.salaryMin       ?? '',
-        salaryMax:       data.salaryMax       ?? '',
-        description:     data.description     ?? '',
-        expectations:    data.expectations    ?? '',
-        teamProfile:     data.teamProfile     ?? '',
-        managementStyle: data.managementStyle ?? '',
-        managementDetail:data.managementDetail ?? '',
-      });
-      setMode('manual'); // Switch to form view to let user review/edit
-    } catch {
-      setAiError('Erreur réseau. Vérifiez votre connexion et réessayez.');
-    } finally {
+      clearTimeout(timeout);
+    } catch (e) {
+      const isTimeout = e instanceof Error && e.name === 'AbortError';
+      setAiError(isTimeout
+        ? 'La génération a pris trop de temps. Réessayez.'
+        : 'Impossible de joindre le serveur. Vérifiez votre connexion.');
       setAiLoading(false);
+      return;
     }
+
+    let data: Record<string, unknown>;
+    try {
+      data = await res.json() as Record<string, unknown>;
+    } catch {
+      setAiError(`Réponse invalide du serveur (HTTP ${res.status}). Réessayez.`);
+      setAiLoading(false);
+      return;
+    }
+
+    if (!res.ok) {
+      const errMap: Record<string, string> = {
+        AI_NOT_CONFIGURED: 'Service IA non configuré. Vérifiez les variables d\'environnement Vercel (GROQ_API_KEY).',
+        TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
+      };
+      setAiError(errMap[data.error as string] ?? 'Erreur lors de la génération. Passez en saisie manuelle.');
+      setAiLoading(false);
+      return;
+    }
+
+    setForm({
+      title:            (data.title            as string) ?? '',
+      location:         (data.location         as string) ?? '',
+      contractType:     (data.contractType     as string) ?? '',
+      salaryMin:        (data.salaryMin        as string) ?? '',
+      salaryMax:        (data.salaryMax        as string) ?? '',
+      description:      (data.description      as string) ?? '',
+      expectations:     (data.expectations     as string) ?? '',
+      teamProfile:      (data.teamProfile      as string) ?? '',
+      managementStyle:  (data.managementStyle  as ManagementStyle) ?? '',
+      managementDetail: (data.managementDetail as string) ?? '',
+    });
+    setMode('manual');
+    setAiLoading(false);
   }
 
   async function handleSave(status: 'draft' | 'published') {

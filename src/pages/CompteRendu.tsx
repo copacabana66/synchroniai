@@ -89,17 +89,21 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
     const postings = (await fetchJobPostings()).filter(p => p.status === 'published');
     const jobPosting = postings[0] ?? null;
 
+    // Appel API avec timeout 60s et parsing JSON sécurisé
+    let res: Response;
     try {
-      const res = await fetch('/api/generate-report', {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60_000);
+      res = await fetch('/api/generate-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           candidate: {
-            name:        c.name,
-            role:        c.role,
-            summary:     c.summary,
-            skills:      c.skills,
-            experience:  c.experience,
+            name:          c.name,
+            role:          c.role,
+            summary:       c.summary,
+            skills:        c.skills,
+            experience:    c.experience,
             communication: c.communication,
           },
           jobPosting: jobPosting ?? {
@@ -108,23 +112,40 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
             expectations: '',
             managementStyle: '',
           },
-          preferences: {},
+          preferences:   {},
           videoAnalysis: null,
         }),
+        signal: controller.signal,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setAiError(data.error === 'AI_NOT_CONFIGURED'
-          ? 'Service IA non configuré. Vérifiez les variables d\'environnement Vercel.'
-          : 'Erreur lors de la génération du rapport.');
-      } else {
-        setAiReport(data as AiReport);
-      }
-    } catch {
-      setAiError('Erreur réseau.');
-    } finally {
+      clearTimeout(timeout);
+    } catch (e) {
+      const isTimeout = e instanceof Error && e.name === 'AbortError';
+      setAiError(isTimeout
+        ? 'La génération a pris trop de temps. Réessayez.'
+        : 'Impossible de joindre le serveur. Vérifiez votre connexion.');
       setAiLoading(false);
+      return;
     }
+
+    let data: Record<string, unknown>;
+    try {
+      data = await res.json() as Record<string, unknown>;
+    } catch {
+      setAiError(`Réponse invalide du serveur (HTTP ${res.status}). Réessayez.`);
+      setAiLoading(false);
+      return;
+    }
+
+    if (!res.ok) {
+      const errMap: Record<string, string> = {
+        AI_NOT_CONFIGURED: 'Service IA non configuré. Vérifiez les variables d\'environnement Vercel.',
+        TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
+      };
+      setAiError(errMap[data.error as string] ?? `Erreur lors de la génération du rapport (${data.error ?? res.status}).`);
+    } else {
+      setAiReport(data as unknown as AiReport);
+    }
+    setAiLoading(false);
   }
 
   return (

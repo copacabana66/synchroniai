@@ -41,13 +41,26 @@ const ALLOWED_ORIGINS = [
   'http://localhost:4173',
 ];
 
+function isAllowedOrigin(origin: string): boolean {
+  if (!origin) return true; // same-origin server-to-server calls
+  if (ALLOWED_ORIGINS.includes(origin)) return true;
+  // Accept any Vercel preview deployment for this project
+  if (/^https:\/\/synchroniai[a-z0-9-]*\.vercel\.app$/.test(origin)) return true;
+  return false;
+}
+
 export function setCorsHeaders(req: VercelRequest, res: VercelResponse): boolean {
   const origin = req.headers.origin ?? '';
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+  if (isAllowedOrigin(origin)) {
+    // Echo the origin (or * for same-origin) — never leave CORS header missing
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    // Explicit rejection — browser gets a clear CORS error, not a hanging request
+    res.setHeader('Access-Control-Allow-Origin', 'null');
   }
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
 

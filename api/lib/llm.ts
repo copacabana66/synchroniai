@@ -67,22 +67,37 @@ export async function chatComplete(
   const t0 = Date.now();
 
   return withRetry(async () => {
-    const res = await fetch(`${config.baseUrl}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-        'HTTP-Referer':  'https://synchroniai.vercel.app',
-        'X-Title':       'SynchroniAI',
-      },
-      body: JSON.stringify({
-        model:       config.model,
-        messages,
-        temperature: 0.2,
-        max_tokens:  maxTokens,
-        response_format: { type: 'json_object' },
-      }),
-    });
+    // AbortController — 30s timeout per attempt
+    const controller = new AbortController();
+    const tid = setTimeout(() => controller.abort(), 30_000);
+
+    const body: Record<string, unknown> = {
+      model:       config.model,
+      messages,
+      temperature: 0.2,
+      max_tokens:  maxTokens,
+    };
+    // json_object mode: only Groq supports it reliably; OpenRouter/Gemini may 400
+    if (config.name === 'Groq') {
+      body.response_format = { type: 'json_object' };
+    }
+
+    let res: Response;
+    try {
+      res = await fetch(`${config.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': `Bearer ${config.apiKey}`,
+          'HTTP-Referer':  'https://synchroniai.vercel.app',
+          'X-Title':       'SynchroniAI',
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } finally {
+      clearTimeout(tid);
+    }
 
     if (!res.ok) {
       const detail = await res.text();
