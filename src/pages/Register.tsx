@@ -30,7 +30,6 @@ export function Register({ setPage, setUser, planChoice }: RegisterProps) {
     setLoading(true);
     try {
       const u = await authSignUp(email, password, name, plan);
-      // Create initial candidate profile row
       if (!isRecruteur) {
         await upsertProfile(u.id, {
           full_name: name,
@@ -41,26 +40,26 @@ export function Register({ setPage, setUser, planChoice }: RegisterProps) {
         });
       }
       setUser(u);
-      // Supabase may require email confirmation — check if session is valid
-      if (!u.id || u.id === '') {
-        // Email confirmation required
+      if (u.needsConfirmation) {
         setEmailSent(true);
       } else {
         setPage(isRecruteur ? 'recruteur' : 'candidat-profil');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
+      const errorMap: Record<string, string> = {
+        SUPABASE_NOT_CONFIGURED: '__FALLBACK__',
+        EMAIL_RATE_LIMIT:  'Trop d\'emails envoyés. Attendez 1 heure ou contactez le support pour activer un compte test.',
+        EMAIL_ALREADY_USED: 'Un compte existe déjà avec cet email. Connectez-vous ou utilisez "Mot de passe oublié".',
+        PASSWORD_TOO_WEAK:  'Mot de passe trop simple. Utilisez au moins 8 caractères avec des chiffres.',
+        INVALID_EMAIL:      'Adresse email invalide. Vérifiez le format.',
+      };
       if (msg === 'SUPABASE_NOT_CONFIGURED') {
-        // Fallback for local dev without Supabase
         const fakeUser: AuthUser = { id: `local-${Date.now()}`, name, email, role: plan };
         setUser(fakeUser);
         setPage(isRecruteur ? 'recruteur' : 'candidat-profil');
-      } else if (msg.includes('already registered') || msg.includes('already been registered')) {
-        setError('Un compte existe déjà avec cet email. Connectez-vous.');
-      } else if (msg.includes('Password should be')) {
-        setError('Mot de passe trop simple. Utilisez au moins 8 caractères avec des chiffres.');
       } else {
-        setError(msg || 'Erreur lors de l\'inscription. Réessayez.');
+        setError(errorMap[msg] ?? msg ?? 'Erreur lors de l\'inscription. Réessayez.');
       }
     } finally {
       setLoading(false);

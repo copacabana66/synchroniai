@@ -24,16 +24,41 @@ export async function authSignUp(
   password: string,
   name: string,
   role: 'recruteur' | 'candidat',
-): Promise<AuthUser> {
+): Promise<AuthUser & { needsConfirmation?: boolean }> {
   if (!isConfigured) throw new Error('SUPABASE_NOT_CONFIGURED');
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { name, role } },
   });
-  if (error) throw new Error(error.message);
+
+  if (error) {
+    // Translate Supabase English errors → French codes
+    const msg = error.message.toLowerCase();
+    if (msg.includes('rate limit') || msg.includes('email rate')) {
+      throw new Error('EMAIL_RATE_LIMIT');
+    }
+    if (msg.includes('already registered') || msg.includes('already been registered') || msg.includes('user already exists')) {
+      throw new Error('EMAIL_ALREADY_USED');
+    }
+    if (msg.includes('password') && (msg.includes('short') || msg.includes('weak') || msg.includes('characters'))) {
+      throw new Error('PASSWORD_TOO_WEAK');
+    }
+    if (msg.includes('invalid email') || msg.includes('unable to validate')) {
+      throw new Error('INVALID_EMAIL');
+    }
+    throw new Error(error.message);
+  }
+
   if (!data.user) throw new Error('Inscription échouée. Réessayez.');
-  return mapUser(data.user);
+
+  // Detect if email confirmation is required (session null = waiting for email click)
+  // Also detect duplicate unconfirmed account (identities empty = email already taken)
+  const needsConfirmation = !data.session;
+  const isDuplicate = data.user.identities?.length === 0;
+  if (isDuplicate) throw new Error('EMAIL_ALREADY_USED');
+
+  return { ...mapUser(data.user), needsConfirmation };
 }
 
 export async function authSignOut(): Promise<void> {
