@@ -6,6 +6,8 @@ import { fetchJobPostings } from '../lib/jobPostingService';
 import type { JobPosting } from '../types';
 import { Avatar } from '../components/Avatar';
 import { ScoreBadge } from '../components/ScoreBadge';
+import { fetchNotes, upsertNote, type RecruiterNote } from '../lib/notesService';
+import { arrayToCSV, downloadFile, printPdf } from '../lib/exportHelpers';
 
 interface RecruteurDashboardProps {
   setPage: (p: PageName) => void;
@@ -55,16 +57,19 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
   const [filterStatus, setFilterStatus] = useState('Tous');
   const [sortBy, setSortBy]             = useState<'score' | 'date'>('score');
   const [expanded, setExpanded]         = useState<string | null>(null);
+  const [notes, setNotes]               = useState<Record<string, RecruiterNote>>({});
 
-  // Chargement initial des fiches de poste et candidats
+  // Chargement initial des fiches de poste, candidats et notes
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [jobs, profiles] = await Promise.all([
+      const [jobs, profiles, notesMap] = await Promise.all([
         fetchJobPostings(userId),
         fetchAllCandidates(),
+        fetchNotes(userId),
       ]);
       setJobPostings(jobs);
+      setNotes(notesMap);
       if (jobs.length > 0) setSelectedJob(jobs[0].id);
       // Candidats sans score (pas encore matchés)
       const base: MatchedCandidate[] = profiles.map((p, i) => ({
@@ -140,6 +145,84 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
     try { return JSON.parse(s) as T; } catch { return null; }
   }
 
+  // ── Export CSV des candidats ────────────────────────────────────────────
+  function exportCSV() {
+    const job = jobPostings.find(j => j.id === selectedJob);
+    const headers = ['Nom', 'Poste actuel', 'Score', 'Recommandation', 'Statut', 'Compétences techniques', 'Soft skills', 'Note recruteur', 'Date export'];
+    const rows: (string | number)[][] = [headers];
+    for (const c of candidates) {
+      rows.push([
+        c.cvData?.fullName ?? '—',
+        c.cvData?.currentRole ?? '—',
+        c.globalScore || 0,
+        c.recommendation,
+        c.status,
+        (c.cvData?.technicalSkills ?? []).join('; '),
+        (c.cvData?.softSkills ?? []).join('; '),
+        notes[c.profile.id]?.note ?? '',
+        new Date().toLocaleString('fr-FR'),
+      ]);
+    }
+    const filename = `synchroniai-candidats${job ? '-' + job.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : ''}-${new Date().toISOString().slice(0, 10)}.csv`;
+    downloadFile(arrayToCSV(rows), filename, 'text/csv');
+  }
+
+  // ── Export PDF du compte rendu d'un candidat ────────────────────────────
+  function exportCandidatePdf(mc: MatchedCandidate) {
+    const job  = jobPostings.find(j => j.id === selectedJob);
+    const name = mc.cvData?.fullName ?? mc.profile.full_name ?? 'Candidat';
+    const note = notes[mc.profile.id]?.note ?? '';
+    const status = notes[mc.profile.id]?.status ?? mc.status;
+
+    const dimsHtml = Object.entries(mc.dimensions)
+      .map(([key, d]) => `<div class="dim"><span style="text-transform:capitalize">${key}</span><span class="dim-val" style="color:${d.score >= 80 ? '#14B8A6' : d.score >= 60 ? '#F59E0B' : '#E11D48'}">${d.score}%</span></div>`)
+      .join('');
+
+    const skillsHtml = (mc.cvData?.technicalSkills ?? []).map(s => `<span class="pill pill-teal" style="margin-right:4px">${s}</span>`).join(' ');
+    const softHtml   = (mc.cvData?.softSkills ?? []).map(s => `<span class="pill pill-coral" style="margin-right:4px">${s}</span>`).join(' ');
+
+    const html = `
+      <h1>${name}</h1>
+      <p style="color:#64748B;font-size:13px;margin:0 0 4px">${mc.cvData?.currentRole ?? ''}</p>
+      ${job ? `<p style="color:#64748B;font-size:12px;margin:0">Évalué pour : <strong>${job.title}</strong></p>` : ''}
+
+      <div class="score-block">
+        <div class="score-big">${mc.globalScore || '—'}${mc.globalScore ? '%' : ''}</div>
+        <div>
+          <span class="pill ${mc.recommendation === 'RETENIR' ? 'pill-teal' : mc.recommendation === 'À EXAMINER' ? 'pill-coral' : 'pill-gray'}">${mc.recommendation}</span>
+          <p style="margin:6px 0 0;font-size:13px">${mc.summary || 'Aucune synthèse disponible.'}</p>
+        </div>
+      </div>
+
+      <h2>Dimensions évaluées</h2>
+      ${dimsHtml || '<p style="color:#94A3B8">Lancez le matching pour générer ces scores.</p>'}
+
+      ${skillsHtml ? `<h2>Compétences techniques</h2><div>${skillsHtml}</div>` : ''}
+      ${softHtml   ? `<h2>Soft skills</h2><div>${softHtml}</div>` : ''}
+
+      <h2>Annotation recruteur</h2>
+      <p><strong>Statut :</strong> ${status}</p>
+      ${note ? `<p style="background:#F8FAFC;padding:12px;border-radius:8px;border-left:3px solid #14B8A6">${note.replace(/\n/g, '<br>')}</p>` : '<p style="color:#94A3B8">Aucune note ajoutée.</p>'}
+    `;
+    printPdf(html, `Compte rendu — ${name}`);
+  }
+
+  // ── Sauvegarde annotation ───────────────────────────────────────────────
+  function updateNote(candidateId: string, patch: Partial<RecruiterNote>) {
+    setNotes(n => ({
+      ...n,
+      [candidateId]: {
+        recruiter_id: userId,
+        candidate_id: candidateId,
+        note: n[candidateId]?.note ?? null,
+        status: n[candidateId]?.status ?? null,
+        ...patch,
+      },
+    }));
+    // Persist en Supabase (fire-and-forget, debounce léger)
+    upsertNote(userId, candidateId, patch);
+  }
+
   const filtered = candidates
     .filter(c => filterStatus === 'Tous' || c.status === filterStatus)
     .sort((a, b) => sortBy === 'score' ? b.globalScore - a.globalScore : 0);
@@ -166,6 +249,14 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
             <p className="text-muted text-sm mt-1">Profils réels — matchés sur votre fiche de poste</p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              onClick={exportCSV}
+              disabled={candidates.length === 0}
+              className="px-4 py-2.5 rounded-btn border border-border bg-white text-primary font-semibold text-sm hover:bg-bg disabled:opacity-40 transition-all"
+              title="Exporter la liste des candidats en CSV (Excel)"
+            >
+              ⤓ Export CSV
+            </button>
             <button
               onClick={() => setPage('recruteur-team')}
               className="px-5 py-2.5 rounded-btn bg-violet text-white font-bold text-sm hover:opacity-90 transition-all"
@@ -370,6 +461,62 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
                             )}
                           </>
                         )}
+
+                        {/* ── Annotations recruteur (historique persistant) ─────── */}
+                        <div className="mt-5 p-4 bg-white border border-border rounded-card">
+                          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+                            <div className="text-xs font-bold text-primary uppercase tracking-wider">📝 Suivi & annotation</div>
+                            {notes[mc.profile.id]?.updated_at && (
+                              <span className="text-[10px] text-muted">Modifié le {new Date(notes[mc.profile.id].updated_at!).toLocaleString('fr-FR')}</span>
+                            )}
+                          </div>
+
+                          {/* Statut */}
+                          <div className="flex flex-wrap gap-2 mb-3">
+                            {['Contacté', 'Entretien', 'Retenu', 'Refusé'].map(s => {
+                              const active = notes[mc.profile.id]?.status === s;
+                              return (
+                                <button
+                                  key={s}
+                                  onClick={() => updateNote(mc.profile.id, { status: active ? null : s })}
+                                  className={`text-xs font-semibold px-3 py-1 rounded-pill border transition-all ${
+                                    active ? 'bg-blue-500 text-white border-blue-500'
+                                           : 'border-border text-muted hover:border-blue-300'
+                                  }`}
+                                >
+                                  {s}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Note libre */}
+                          <textarea
+                            value={notes[mc.profile.id]?.note ?? ''}
+                            onChange={(e) => updateNote(mc.profile.id, { note: e.target.value })}
+                            placeholder="Notes personnelles, points évoqués en entretien, prochaines étapes…"
+                            rows={3}
+                            className="w-full border border-border rounded-btn bg-bg px-3 py-2 text-sm text-primary focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 resize-none"
+                          />
+                        </div>
+
+                        {/* Actions : export PDF */}
+                        <div className="flex flex-wrap gap-2 mt-4">
+                          <button
+                            onClick={() => exportCandidatePdf(mc)}
+                            className="flex-1 px-4 py-2.5 rounded-btn bg-primary text-white font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                          >
+                            📄 Télécharger le compte rendu PDF
+                          </button>
+                          {mc.profile.email && (
+                            <a
+                              href={`mailto:${mc.profile.email}?subject=SynchroniAI — Votre candidature`}
+                              className="px-4 py-2.5 rounded-btn border border-border bg-white text-primary font-semibold text-sm hover:bg-bg transition-all"
+                            >
+                              ✉ Contacter
+                            </a>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -381,6 +528,21 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
             </div>
           </>
         )}
+
+        {/* Support prioritaire — toujours visible côté recruteur */}
+        <div className="mt-12 p-5 bg-gradient-to-br from-blue-50 to-bg border border-blue-100 rounded-card flex flex-wrap items-center gap-4">
+          <div className="text-3xl">💬</div>
+          <div className="flex-1 min-w-48">
+            <div className="font-bold text-primary text-sm">Support prioritaire 7j/7</div>
+            <div className="text-xs text-muted">Une question, un blocage ? Réponse sous 24h.</div>
+          </div>
+          <a
+            href="mailto:renatoprojetrecrutement@gmail.com?subject=Support%20SynchroniAI%20Pro"
+            className="px-4 py-2 rounded-btn bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition-all"
+          >
+            Contacter le support
+          </a>
+        </div>
       </div>
     </div>
   );

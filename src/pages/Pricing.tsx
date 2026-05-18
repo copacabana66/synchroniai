@@ -33,11 +33,15 @@ const recruteurProFeatures = [
   'Support prioritaire 7j/7',
 ];
 
-function FeatureItem({ text, accent }: { text: string; accent: string }) {
+function FeatureItem({ text, dark = false }: { text: string; dark?: boolean }) {
   return (
-    <li className="text-sm flex items-start gap-2">
-      <span style={{ color: accent }} className="font-bold flex-shrink-0 mt-0.5">✓</span>
-      <span>{text}</span>
+    <li className="text-sm flex items-start gap-2.5">
+      <span className={`flex-shrink-0 mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+        dark ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-600'
+      }`}>
+        ✓
+      </span>
+      <span className={dark ? 'text-white/90' : 'text-primary'}>{text}</span>
     </li>
   );
 }
@@ -86,7 +90,7 @@ export function Pricing({ setPage, setPlanChoice }: PricingProps) {
             </div>
             <ul className="space-y-2 mb-7 flex-1">
               {candidatFeatures.map(f => (
-                <FeatureItem key={f} text={f} accent="#09C4A0" />
+                <FeatureItem key={f} text={f} />
               ))}
             </ul>
             <button
@@ -116,7 +120,7 @@ export function Pricing({ setPage, setPlanChoice }: PricingProps) {
             </div>
             <ul className="space-y-2 mb-7 flex-1">
               {recruteurCarteFeatures.map(f => (
-                <FeatureItem key={f} text={f} accent="#F06A28" />
+                <FeatureItem key={f} text={f} />
               ))}
             </ul>
             <button
@@ -146,7 +150,7 @@ export function Pricing({ setPage, setPlanChoice }: PricingProps) {
             </div>
             <ul className="space-y-2 mb-7 flex-1">
               {recruteurProFeatures.map(f => (
-                <FeatureItem key={f} text={f} accent="#09C4A0" />
+                <FeatureItem key={f} text={f} dark />
               ))}
             </ul>
             <button
@@ -201,11 +205,26 @@ export function Pricing({ setPage, setPlanChoice }: PricingProps) {
           ))}
         </div>
 
-        <div className="text-center">
+        <div className="text-center mb-10">
           <p className="text-sm text-muted mb-2">Déjà abonné ?</p>
           <button onClick={() => setPage('login')} className="text-teal font-semibold text-sm hover:underline">
             Se connecter →
           </button>
+        </div>
+
+        {/* Support — réel */}
+        <div className="bg-primary rounded-card p-6 text-center">
+          <div className="text-3xl mb-2">💬</div>
+          <h3 className="text-white font-bold text-lg mb-1">Support prioritaire 7j/7</h3>
+          <p className="text-white/60 text-sm mb-3">
+            Une question, un blocage, un retour ? L'équipe SynchroniAI répond sous 24h.
+          </p>
+          <a
+            href="mailto:renatoprojetrecrutement@gmail.com?subject=Support%20SynchroniAI"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-btn bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition-all"
+          >
+            ✉ renatoprojetrecrutement@gmail.com
+          </a>
         </div>
       </div>
     </div>

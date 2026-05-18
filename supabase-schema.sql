@@ -119,7 +119,25 @@ create policy "team_own" on recruiter_teams for all
   with check (auth.uid() = recruiter_id);
 
 
--- 4. Buckets de stockage
+-- 4. Notes & annotations recruteur sur les candidats (historique)
+create table if not exists recruiter_candidate_notes (
+  recruiter_id  uuid not null references auth.users(id) on delete cascade,
+  candidate_id  uuid not null references auth.users(id) on delete cascade,
+  note          text,
+  status        text,                    -- ex: 'contacté', 'entretien', 'retenu', 'refusé'
+  updated_at    timestamptz default now(),
+  primary key (recruiter_id, candidate_id)
+);
+
+alter table recruiter_candidate_notes enable row level security;
+
+drop policy if exists "notes_own" on recruiter_candidate_notes;
+create policy "notes_own" on recruiter_candidate_notes for all
+  using (auth.uid() = recruiter_id)
+  with check (auth.uid() = recruiter_id);
+
+
+-- 5. Buckets de stockage
 insert into storage.buckets (id, name, public) values ('cvs', 'cvs', false)
   on conflict (id) do nothing;
 
