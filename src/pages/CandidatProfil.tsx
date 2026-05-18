@@ -3,14 +3,33 @@ import type { PageName, AnalysisStatus, CvAnalysisData, VideoAnalysisData, Quest
 import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile } from '../lib/candidateService';
 import * as pdfjs from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
-// Import worker from local package — no CDN dependency, no CSP issue
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// jsDelivr CDN — 99.99% uptime, Cloudflare-backed, supporte les ESM workers
+// Nécessaire : pdfjs-dist v5 ne fournit que des .mjs (ES modules).
+// Le ?url Vite retourne une URL chargée comme classic worker → échec.
+// pdfjs détecte l'extension .mjs dans l'URL CDN et crée un module worker correct.
+pdfjs.GlobalWorkerOptions.workerSrc =
+  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
+
+// Codes d'erreur pdfjs internes pour messages précis
+type PdfjsError = { name?: string; message?: string };
 
 async function extractPdfText(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+
+  let pdf: Awaited<ReturnType<typeof pdfjs.getDocument>['promise']>;
+  try {
+    pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  } catch (e) {
+    const err = e as PdfjsError;
+    // pdfjs lève des erreurs typées — on les traduit pour l'utilisateur
+    if (err?.name === 'PasswordException') throw new Error('PDF_ENCRYPTED');
+    if (err?.name === 'InvalidPDFException')  throw new Error('PDF_INVALID');
+    if (err?.name === 'MissingPDFException')  throw new Error('PDF_MISSING');
+    console.error('[pdfjs] Erreur chargement :', err);
+    throw new Error('PDF_LOAD_ERROR');
+  }
+
   const pages: string[] = [];
   for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
     const page = await pdf.getPage(i);
@@ -134,8 +153,14 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
     try {
       cvText = await extractPdfText(file);
     } catch (e) {
-      console.error('[CV] Erreur extraction PDF :', e);
-      setCvError('Impossible de lire ce PDF. Le fichier est peut-être corrompu ou protégé par un mot de passe.');
+      const code = e instanceof Error ? e.message : '';
+      const pdfErrorMap: Record<string, string> = {
+        PDF_ENCRYPTED:  'Ce PDF est protégé par un mot de passe. Enregistrez-le sans protection et réessayez.',
+        PDF_INVALID:    'Ce PDF est corrompu. Régénérez-le depuis Word, LibreOffice ou un outil en ligne.',
+        PDF_MISSING:    'Le fichier PDF est introuvable ou vide. Réessayez.',
+        PDF_LOAD_ERROR: 'Erreur technique lors de la lecture du PDF. Réessayez ou utilisez un autre navigateur (Chrome recommandé).',
+      };
+      setCvError(pdfErrorMap[code] ?? 'Erreur lors de la lecture du PDF. Réessayez ou utilisez Chrome.');
       setCvLoading(false);
       return;
     }
