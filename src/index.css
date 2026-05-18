@@ -57,15 +57,12 @@
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.95' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   }
 
-  /* Mesh gradient animé pour les hero sections */
+  /* Mesh gradient statique pour les pages secondaires */
   .mesh-bg {
     background:
-      radial-gradient(ellipse 80% 60% at 80% 20%, rgba(20,184,166,0.18), transparent),
-      radial-gradient(ellipse 60% 50% at 20% 80%, rgba(251,113,133,0.18), transparent),
-      radial-gradient(ellipse 80% 60% at 50% 50%, rgba(139,92,246,0.10), transparent),
+      radial-gradient(ellipse 60% 50% at 80% 0%, rgba(20,184,166,0.12), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 20% 100%, rgba(251,113,133,0.10), transparent 60%),
       #FAFAF7;
-    background-size: 200% 200%;
-    animation: bg-pan 14s ease-in-out infinite;
   }
 
   /* Bouton principal avec effet glow au hover */
@@ -122,4 +119,14 @@
 @keyframes pulse-soft {
   0%, 100% { transform: scale(1); opacity: 1; }
   50%       { transform: scale(0.94); opacity: 0.72; }
+}
+
+/* Tracé progressif des deux boucles du logo S */
+@keyframes logo-draw-top {
+  from { stroke-dashoffset: 60; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes logo-draw-bot {
+  from { stroke-dashoffset: 60; }
+  to   { stroke-dashoffset: 0; }
 }

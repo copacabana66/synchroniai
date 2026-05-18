@@ -56,54 +56,23 @@ export default {
         'glow-coral': '0 0 32px -8px rgba(251,113,133,0.35)',
       },
       animation: {
-        'spin-slow':   'spin 8s linear infinite',
-        'pulse-soft':  'pulse-soft 2.2s ease-in-out infinite',
-        'fade-in':     'fade-in 0.6s ease-out forwards',
-        'fade-up':     'fade-up 0.6s ease-out forwards',
-        'slide-in':    'slide-in 0.4s ease-out forwards',
-        'marquee':     'marquee 30s linear infinite',
-        'shimmer':     'shimmer 2.4s ease-in-out infinite',
-        'float':       'float 6s ease-in-out infinite',
-        'word-cycle':  'word-cycle 8s ease-in-out infinite',
-        'bg-pan':      'bg-pan 14s ease-in-out infinite',
+        'spin-slow':  'spin 8s linear infinite',
+        'pulse-soft': 'pulse-soft 3s ease-in-out infinite',
+        'fade-in':    'fade-in 0.7s ease-out forwards',
+        'fade-up':    'fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
       },
       keyframes: {
         'pulse-soft': {
-          '0%, 100%': { transform: 'scale(1)', opacity: '1' },
-          '50%':       { transform: 'scale(0.94)', opacity: '0.72' },
+          '0%, 100%': { transform: 'scale(1)',    opacity: '1'    },
+          '50%':       { transform: 'scale(1.04)', opacity: '0.85' },
         },
         'fade-in': {
           'from': { opacity: '0' },
           'to':   { opacity: '1' },
         },
         'fade-up': {
-          'from': { opacity: '0', transform: 'translateY(12px)' },
+          'from': { opacity: '0', transform: 'translateY(16px)' },
           'to':   { opacity: '1', transform: 'translateY(0)' },
-        },
-        'slide-in': {
-          'from': { opacity: '0', transform: 'translateX(-12px)' },
-          'to':   { opacity: '1', transform: 'translateX(0)' },
-        },
-        'marquee': {
-          'from': { transform: 'translateX(0)' },
-          'to':   { transform: 'translateX(-50%)' },
-        },
-        'shimmer': {
-          '0%, 100%': { opacity: '0.5' },
-          '50%':       { opacity: '1' },
-        },
-        'float': {
-          '0%, 100%': { transform: 'translateY(0px)' },
-          '50%':       { transform: 'translateY(-8px)' },
-        },
-        'word-cycle': {
-          '0%, 22%':   { opacity: '0', transform: 'translateY(10px)' },
-          '5%, 18%':   { opacity: '1', transform: 'translateY(0)' },
-          '20%, 100%': { opacity: '0', transform: 'translateY(-10px)' },
-        },
-        'bg-pan': {
-          '0%, 100%': { backgroundPosition: '0% 50%' },
-          '50%':       { backgroundPosition: '100% 50%' },
         },
       },
     },

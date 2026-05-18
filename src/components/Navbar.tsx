@@ -22,12 +22,10 @@ export function Navbar({ page, setPage, user, onLogout }: NavbarProps) {
       {/* Logo */}
       <button
         onClick={() => setPage('landing')}
-        className="flex items-center gap-2.5 cursor-pointer"
+        className="flex items-center gap-2 cursor-pointer group"
       >
-        <div className="w-8 h-8 rounded-lg bg-teal flex items-center justify-center flex-shrink-0">
-          <MatchingLogo size={22} color="#1A3E6E" animated={false} />
-        </div>
-        <span className={`font-bold text-lg tracking-tight ${isLanding ? 'text-white' : 'text-primary'}`}>
+        <MatchingLogo size={32} variant={isLanding ? 'white' : 'gradient'} animated={false} />
+        <span className={`font-extrabold text-lg tracking-tight transition-colors ${isLanding ? 'text-white' : 'text-primary'} group-hover:text-teal`}>
           SynchroniAI
         </span>
       </button>

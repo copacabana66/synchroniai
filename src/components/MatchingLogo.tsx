@@ -1,65 +1,76 @@
 interface MatchingLogoProps {
   size?: number;
-  color?: string;
   animated?: boolean;
+  variant?: 'gradient' | 'mono' | 'white';
 }
 
+/**
+ * Logo SynchroniAI — un S formé par deux cercles qui s'unissent.
+ * Métaphore visuelle : deux parties (recruteur + candidat) qui se rejoignent
+ * au point de matching central. Le tracé S émerge de leur union.
+ */
 export function MatchingLogo({
   size = 56,
-  color = '#09C4A0',
   animated = true,
+  variant = 'gradient',
 }: MatchingLogoProps) {
+  const id = (variant === 'gradient') ? 'sai-grad' : variant;
+
+  // Couleurs selon le variant
+  const topColor    = variant === 'mono'  ? '#0F172A' : variant === 'white' ? '#FFFFFF' : 'url(#sai-grad-top)';
+  const bottomColor = variant === 'mono'  ? '#0F172A' : variant === 'white' ? '#FFFFFF' : 'url(#sai-grad-bot)';
+  const dotTop      = variant === 'mono'  ? '#0F172A' : variant === 'white' ? '#FFFFFF' : '#14B8A6';
+  const dotBot      = variant === 'mono'  ? '#0F172A' : variant === 'white' ? '#FFFFFF' : '#FB7185';
+  const centerDot   = variant === 'white' ? '#FFFFFF' : '#0F172A';
+
   return (
-    <div
-      style={{ width: size, height: size, position: 'relative' }}
-      className={animated ? 'animate-pulse-soft' : ''}
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 56 64"
+      fill="none"
+      style={{ display: 'block' }}
+      aria-label="SynchroniAI logo"
     >
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          borderRadius: '50%',
-          border: `1.5px solid ${color}`,
-          opacity: 0.28,
-        }}
-      />
-      <svg
-        width={size}
-        height={size}
-        viewBox="0 0 56 56"
+      <defs>
+        <linearGradient id={`${id}-top`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#14B8A6" />
+          <stop offset="100%" stopColor="#0F766E" />
+        </linearGradient>
+        <linearGradient id={`${id}-bot`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"   stopColor="#FB7185" />
+          <stop offset="100%" stopColor="#E11D48" />
+        </linearGradient>
+      </defs>
+
+      {/* Boucle haute : cercle qui forme le haut du S
+          Centre (28, 22), rayon 12. De droite (40,22) → haut → gauche → bas (28,34) */}
+      <path
+        d="M 40 22 A 12 12 0 1 0 28 34"
+        stroke={topColor}
+        strokeWidth="5.5"
+        strokeLinecap="round"
         fill="none"
-        className={animated ? 'animate-spin-slow' : ''}
-        style={{ display: 'block' }}
-      >
-        <path
-          d="M 10 28 A 18 18 0 0 1 46 28"
-          stroke={color}
-          strokeWidth="2.6"
-          strokeLinecap="round"
-        />
-        <path
-          d="M 43 21 L 46 28 L 40 29.5"
-          stroke={color}
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M 46 28 A 18 18 0 0 1 10 28"
-          stroke={color}
-          strokeWidth="2.6"
-          strokeLinecap="round"
-        />
-        <path
-          d="M 13 35 L 10 28 L 16 26.5"
-          stroke={color}
-          strokeWidth="2.6"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-        <circle cx="28" cy="28" r="5.5" fill={color} opacity="0.2" />
-        <circle cx="28" cy="28" r="3.5" fill={color} />
-      </svg>
-    </div>
+        style={animated ? { strokeDasharray: 60, strokeDashoffset: 0, animation: 'logo-draw-top 1.4s ease-out' } : undefined}
+      />
+
+      {/* Boucle basse : cercle qui forme le bas du S
+          Centre (28, 46), rayon 12. De haut (28,34) → droite → bas → gauche (16,46) */}
+      <path
+        d="M 28 34 A 12 12 0 1 1 16 46"
+        stroke={bottomColor}
+        strokeWidth="5.5"
+        strokeLinecap="round"
+        fill="none"
+        style={animated ? { strokeDasharray: 60, strokeDashoffset: 0, animation: 'logo-draw-bot 1.4s ease-out 0.2s' } : undefined}
+      />
+
+      {/* Points d'extrémité — les deux parties qui se rencontrent */}
+      <circle cx="40" cy="22" r="3.2" fill={dotTop} className={animated ? 'animate-pulse-soft' : ''} />
+      <circle cx="16" cy="46" r="3.2" fill={dotBot} className={animated ? 'animate-pulse-soft' : ''} style={{ animationDelay: '0.7s' }} />
+
+      {/* Point de matching central */}
+      <circle cx="28" cy="34" r="2.4" fill={centerDot} />
+    </svg>
   );
 }

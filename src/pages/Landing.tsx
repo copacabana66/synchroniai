@@ -57,124 +57,91 @@ const benefits = {
   ],
 };
 
-const ROTATING_WORDS = ['écoute.', 'comprend.', 'respecte.', 'révèle.', 'aligne.'];
-
-const TICKER_PHRASES = [
-  '— Compatibilité humaine —',
-  '— ADN d\'équipe —',
-  '— Personnalité Big Five —',
-  '— Conforme AI Act —',
-  '— Zéro biais —',
-  '— Matching explicable —',
-];
-
 export function Landing({ setPage }: LandingProps) {
   return (
     <div className="min-h-screen">
-      {/* HERO — premium mesh background avec mots animés */}
-      <section className="relative overflow-hidden bg-primary py-24 px-6 grain">
-        {/* Orbes de couleur en arrière-plan */}
-        <div className="absolute top-1/4 -left-32 w-96 h-96 rounded-full bg-teal/20 blur-3xl animate-float pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-96 h-96 rounded-full bg-coral/15 blur-3xl animate-float pointer-events-none" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-0 right-1/4 w-64 h-64 rounded-full bg-violet/15 blur-3xl animate-float pointer-events-none" style={{ animationDelay: '4s' }} />
+      {/* HERO — sobre, élégant, premium */}
+      <section className="relative overflow-hidden bg-primary py-20 md:py-28 px-6">
+        {/* Aura douce — un seul orbe statique, très subtil */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[600px] rounded-full bg-teal/8 blur-[120px] pointer-events-none" />
 
-        <div className="relative max-w-5xl mx-auto text-center">
-          <span className="inline-block mb-6 px-4 py-1.5 rounded-pill bg-teal/15 border border-teal/30 text-teal text-xs font-bold tracking-widest uppercase animate-fade-in opacity-0-init" style={{ animationFillMode: 'forwards' }}>
-            ✦ Conforme AI Act européen
-          </span>
+        <div className="relative max-w-5xl mx-auto">
 
-          <h1 className="text-display text-white mb-6 animate-fade-up opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '80ms' }}>
+          {/* Logo + nom au-dessus */}
+          <div className="flex items-center justify-center gap-3 mb-8 animate-fade-in opacity-0-init" style={{ animationFillMode: 'forwards' }}>
+            <MatchingLogo size={44} variant="white" animated={true} />
+            <span className="text-white font-extrabold text-xl tracking-tight">SynchroniAI</span>
+          </div>
+
+          {/* Titre principal */}
+          <h1 className="text-display text-white text-center mb-6 animate-fade-up opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '100ms' }}>
             Le recrutement qui<br />
-            <span className="inline-block relative h-[1.05em] overflow-hidden align-baseline" style={{ minWidth: '5ch' }}>
-              {ROTATING_WORDS.map((word, i) => (
-                <span
-                  key={word}
-                  className="absolute left-0 top-0 bg-gradient-to-r from-teal via-sage to-teal bg-clip-text text-transparent animate-word-cycle"
-                  style={{ animationDelay: `${i * 1.6}s`, animationDuration: `${ROTATING_WORDS.length * 1.6}s` }}
-                >
-                  {word}
-                </span>
-              ))}
-              <span className="invisible">{ROTATING_WORDS[0]}</span>
+            <span className="bg-gradient-to-r from-teal via-sage to-teal bg-clip-text text-transparent">
+              révèle l'alignement
             </span>
           </h1>
 
-          <p className="text-white/70 text-lg max-w-2xl mx-auto mb-12 animate-fade-up opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '180ms' }}>
+          {/* Sous-titre */}
+          <p className="text-white/65 text-base md:text-lg text-center max-w-2xl mx-auto mb-12 leading-relaxed animate-fade-up opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '200ms' }}>
             Matching organisationnel transparent — compétences, personnalité, valeurs et ADN d'équipe.
+            <br className="hidden md:block" />
             Pour des recrutements qui durent vraiment.
           </p>
 
-        {/* Three-element hero row */}
-        <div className="flex items-center justify-center gap-0 flex-wrap max-w-3xl mx-auto">
-          {/* Left card */}
-          <button
-            onClick={() => setPage('pricing')}
-            className="flex-1 max-w-xs text-center rounded-2xl p-8 cursor-pointer border-[1.5px] border-white/12 transition-all duration-200 hover:border-teal/40"
-            style={{ background: 'rgba(255,255,255,0.05)' }}
-            onMouseEnter={e =>
-              ((e.currentTarget as HTMLElement).style.background =
-                'rgba(255,255,255,0.10)')
-            }
-            onMouseLeave={e =>
-              ((e.currentTarget as HTMLElement).style.background =
-                'rgba(255,255,255,0.05)')
-            }
-          >
-            <div className="text-5xl mb-4">👤</div>
-            <h3 className="text-xl font-extrabold text-white mb-2">
-              Espace Candidat
-            </h3>
-            <p className="text-white/50 text-sm leading-relaxed mb-5">
-              Trouvez un poste aligné avec votre personnalité, vos valeurs et
-              votre style de travail.
-            </p>
-            <span className="inline-block px-5 py-2.5 rounded-btn bg-teal text-primary font-bold text-sm">
-              Accéder →
-            </span>
-          </button>
+          {/* Trois colonnes : candidat / logo central / recruteur */}
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-6 max-w-3xl mx-auto animate-fade-up opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '320ms' }}>
 
-          {/* Center logo */}
-          <div className="flex flex-col items-center gap-1.5 px-5 flex-shrink-0">
-            <div className="w-16 h-16 rounded-full bg-teal/10 border-2 border-teal/30 flex items-center justify-center animate-pulse-soft">
-              <MatchingLogo size={40} color="#09C4A0" animated={true} />
+            <button
+              onClick={() => setPage('pricing')}
+              className="group text-left rounded-card p-6 cursor-pointer border border-white/10 bg-white/[0.04] backdrop-blur-sm hover:bg-white/[0.07] hover:border-teal/40 transition-all duration-300"
+            >
+              <div className="w-11 h-11 rounded-xl bg-teal/15 border border-teal/25 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <span className="text-xl">👤</span>
+              </div>
+              <h3 className="text-base font-bold text-white mb-1.5">Je suis candidat</h3>
+              <p className="text-white/50 text-xs leading-relaxed mb-4">
+                Trouvez l'entreprise dont la culture vous correspond — pas juste le poste.
+              </p>
+              <span className="inline-flex items-center gap-1 text-teal text-xs font-semibold">
+                Découvrir mes offres
+                <span className="transition-transform group-hover:translate-x-0.5">→</span>
+              </span>
+            </button>
+
+            {/* Logo central immense */}
+            <div className="flex flex-col items-center gap-2 py-4">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-full bg-teal/20 blur-2xl animate-pulse-soft" />
+                <div className="relative w-24 h-24 rounded-full bg-white/[0.06] border border-white/10 flex items-center justify-center backdrop-blur-sm">
+                  <MatchingLogo size={64} variant="gradient" animated={true} />
+                </div>
+              </div>
+              <span className="text-white/40 text-[10px] font-bold tracking-[0.2em] uppercase">Matching</span>
             </div>
+
+            <button
+              onClick={() => setPage('pricing')}
+              className="group text-left rounded-card p-6 cursor-pointer border border-white/10 bg-white/[0.04] backdrop-blur-sm hover:bg-white/[0.07] hover:border-coral/40 transition-all duration-300"
+            >
+              <div className="w-11 h-11 rounded-xl bg-coral/15 border border-coral/25 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                <span className="text-xl">🏢</span>
+              </div>
+              <h3 className="text-base font-bold text-white mb-1.5">Je suis recruteur</h3>
+              <p className="text-white/50 text-xs leading-relaxed mb-4">
+                Identifiez le profil qui complète vraiment votre équipe — analyse ADN incluse.
+              </p>
+              <span className="inline-flex items-center gap-1 text-coral text-xs font-semibold">
+                Accéder à l'espace
+                <span className="transition-transform group-hover:translate-x-0.5">→</span>
+              </span>
+            </button>
           </div>
 
-          {/* Right card */}
-          <button
-            onClick={() => setPage('pricing')}
-            className="flex-1 max-w-xs text-center rounded-2xl p-8 cursor-pointer border-[1.5px] border-white/12 transition-all duration-200 hover:border-orange/40"
-            style={{ background: 'rgba(255,255,255,0.05)' }}
-            onMouseEnter={e =>
-              ((e.currentTarget as HTMLElement).style.background =
-                'rgba(255,255,255,0.10)')
-            }
-            onMouseLeave={e =>
-              ((e.currentTarget as HTMLElement).style.background =
-                'rgba(255,255,255,0.05)')
-            }
-          >
-            <div className="text-5xl mb-4">🏢</div>
-            <h3 className="text-xl font-extrabold text-white mb-2">
-              Espace Recruteur
-            </h3>
-            <p className="text-white/50 text-sm leading-relaxed mb-5">
-              Identifiez les candidats qui durent. Matching organisationnel en
-              7 dimensions expliquées.
-            </p>
-            <span className="inline-block px-5 py-2.5 rounded-btn bg-coral text-white font-bold text-sm">
-              Accéder →
-            </span>
-          </button>
-        </div>
-        </div>
-
-        {/* Ticker de phrases défilantes en bas du hero */}
-        <div className="relative mt-16 overflow-hidden border-t border-white/10 pt-6">
-          <div className="flex animate-marquee whitespace-nowrap" style={{ width: 'max-content' }}>
-            {[...TICKER_PHRASES, ...TICKER_PHRASES, ...TICKER_PHRASES].map((phrase, i) => (
-              <span key={i} className="text-white/30 text-sm font-medium mx-6 tracking-wider">{phrase}</span>
-            ))}
+          {/* Badges de confiance */}
+          <div className="flex flex-wrap items-center justify-center gap-6 mt-14 animate-fade-in opacity-0-init" style={{ animationFillMode: 'forwards', animationDelay: '500ms' }}>
+            <span className="text-white/40 text-xs font-medium tracking-wider">✓ Conforme AI Act européen</span>
+            <span className="text-white/40 text-xs font-medium tracking-wider">✓ Big Five validé scientifiquement</span>
+            <span className="text-white/40 text-xs font-medium tracking-wider">✓ RGPD natif</span>
           </div>
         </div>
       </section>
