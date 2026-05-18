@@ -41,35 +41,50 @@ export function getLLMConfig(): LLMConfig | null {
   return null;
 }
 
-// Exponential backoff retry — 2 attempts after initial failure
-async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+// Exponential backoff retry — skips retry on timeout (AbortError) or noRetry flag
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 1): Promise<T> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       return await fn();
     } catch (err) {
       lastError = err;
+      // Never retry on timeout or auth errors — they won't resolve with retries
+      const isAbort  = err instanceof Error && err.name === 'AbortError';
+      const noRetry  = err instanceof Error && (err as { noRetry?: boolean }).noRetry === true;
+      if (isAbort || noRetry) throw err;
       if (attempt < maxRetries) {
-        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+        await new Promise(r => setTimeout(r, 600 * Math.pow(2, attempt)));
       }
     }
   }
   throw lastError;
 }
 
+export interface ChatOptions {
+  maxTokens?: number;
+  timeoutMs?: number;  // AbortController timeout per attempt
+  maxRetries?: number; // 0 = single attempt, 1 = one retry (default)
+}
+
 export async function chatComplete(
   messages: Message[],
   maxTokens = 1500,
+  options: ChatOptions = {},
 ): Promise<string> {
+  const {
+    timeoutMs  = 20_000,
+    maxRetries = 1,
+  } = options;
+
   const config = getLLMConfig();
   if (!config) throw new Error('NO_LLM_CONFIGURED');
 
   const t0 = Date.now();
 
   return withRetry(async () => {
-    // AbortController — 30s timeout per attempt
     const controller = new AbortController();
-    const tid = setTimeout(() => controller.abort(), 30_000);
+    const tid = setTimeout(() => controller.abort(), timeoutMs);
 
     const body: Record<string, unknown> = {
       model:       config.model,
@@ -77,7 +92,7 @@ export async function chatComplete(
       temperature: 0.2,
       max_tokens:  maxTokens,
     };
-    // json_object mode: only Groq supports it reliably; OpenRouter/Gemini may 400
+    // json_object mode: only Groq supports it reliably
     if (config.name === 'Groq') {
       body.response_format = { type: 'json_object' };
     }
@@ -101,7 +116,6 @@ export async function chatComplete(
 
     if (!res.ok) {
       const detail = await res.text();
-      // Don't retry on auth errors
       if (res.status === 401 || res.status === 403) {
         throw Object.assign(new Error(`LLM_AUTH_ERROR:${config.name}`), { noRetry: true });
       }
@@ -115,7 +129,7 @@ export async function chatComplete(
 
     console.log(`[${config.name}] ${Date.now() - t0}ms — ${content.length} chars`);
     return content;
-  });
+  }, maxRetries);
 }
 
 // Robust JSON extraction — handles markdown fences, leading text, partial wraps

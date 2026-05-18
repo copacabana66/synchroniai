@@ -44,10 +44,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   ].join('\n\n');
 
   try {
-    const raw = await chatComplete([
-      { role: 'system', content: SYSTEM_PROMPT },
-      { role: 'user',   content: userContent },
-    ], 2000);
+    const raw = await chatComplete(
+      [
+        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'user',   content: userContent },
+      ],
+      2000,
+      { maxRetries: 1, timeoutMs: 20_000 },
+    );
 
     const report = extractJSON(raw) as Record<string, unknown>;
 

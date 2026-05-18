@@ -323,7 +323,8 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
       const errMap: Record<string, string> = {
         AI_NOT_CONFIGURED: 'Service IA non configuré.',
         TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute.',
-        AUDIO_TOO_LARGE: 'Audio trop volumineux. Enregistrement plus court requis.',
+        AUDIO_TOO_LARGE:   'Audio trop volumineux. Enregistrement plus court requis.',
+        LLM_TIMEOUT:       'L\'analyse a pris trop de temps. Réessayez avec un enregistrement plus court (30-60s).',
       };
       setVideoError(errMap[data.error as string] ?? `Erreur d'analyse audio (${data.error ?? res.status}).`);
     } else {
