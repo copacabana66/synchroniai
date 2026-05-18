@@ -104,7 +104,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
       const data = await res.json();
       if (!res.ok) {
         if (data.error === 'AI_NOT_CONFIGURED') {
-          setAiError('Clé API Gemini non configurée. Ajoutez GEMINI_API_KEY dans les variables d\'environnement Vercel.');
+          setAiError('Service IA non configuré. Vérifiez les variables d\'environnement Vercel (GROQ_API_KEY).');
         } else {
           setAiError('Erreur lors de la génération. Réessayez ou passez en saisie manuelle.');
         }
@@ -277,7 +277,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
             </button>
 
             <p className="text-xs text-muted text-center mt-3">
-              Alimenté par Google Gemini 1.5 Flash · La fiche générée reste entièrement modifiable
+              Alimenté par Groq IA (Llama 3.3 70B) · La fiche générée reste entièrement modifiable
             </p>
           </div>
         )}

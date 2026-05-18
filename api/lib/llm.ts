@@ -1,5 +1,5 @@
-// Shared LLM client — supports Groq (priority) and OpenRouter
-// Both use the OpenAI-compatible chat/completions endpoint
+// Shared LLM client — Groq (priority) → OpenRouter → Gemini
+// Patterns: retry with backoff, robust JSON extraction, structured logging
 
 export interface Message {
   role: 'system' | 'user' | 'assistant';
@@ -18,7 +18,7 @@ export function getLLMConfig(): LLMConfig | null {
     return {
       baseUrl: 'https://api.groq.com/openai/v1',
       apiKey:  process.env.GROQ_API_KEY,
-      model:   'llama-3.1-70b-versatile',
+      model:   'llama-3.3-70b-versatile',
       name:    'Groq',
     };
   }
@@ -26,20 +26,35 @@ export function getLLMConfig(): LLMConfig | null {
     return {
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey:  process.env.OPENROUTER_API_KEY,
-      model:   'meta-llama/llama-3.1-70b-instruct:free',
+      model:   'meta-llama/llama-3.3-70b-instruct:free',
       name:    'OpenRouter',
     };
   }
-  // Gemini fallback via OpenAI-compatible wrapper (if key exists)
   if (process.env.GEMINI_API_KEY) {
     return {
-      baseUrl: `https://generativelanguage.googleapis.com/v1beta/openai`,
+      baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
       apiKey:  process.env.GEMINI_API_KEY,
       model:   'gemini-1.5-flash',
       name:    'Gemini',
     };
   }
   return null;
+}
+
+// Exponential backoff retry — 2 attempts after initial failure
+async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        await new Promise(r => setTimeout(r, 500 * Math.pow(2, attempt)));
+      }
+    }
+  }
+  throw lastError;
 }
 
 export async function chatComplete(
@@ -49,38 +64,64 @@ export async function chatComplete(
   const config = getLLMConfig();
   if (!config) throw new Error('NO_LLM_CONFIGURED');
 
-  const res = await fetch(`${config.baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      'Authorization': `Bearer ${config.apiKey}`,
-      'HTTP-Referer':  'https://synchroniai.vercel.app',
-      'X-Title':       'SynchroniAI',
-    },
-    body: JSON.stringify({
-      model:       config.model,
-      messages,
-      temperature: 0.3,
-      max_tokens:  maxTokens,
-    }),
+  const t0 = Date.now();
+
+  return withRetry(async () => {
+    const res = await fetch(`${config.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${config.apiKey}`,
+        'HTTP-Referer':  'https://synchroniai.vercel.app',
+        'X-Title':       'SynchroniAI',
+      },
+      body: JSON.stringify({
+        model:       config.model,
+        messages,
+        temperature: 0.2,
+        max_tokens:  maxTokens,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text();
+      // Don't retry on auth errors
+      if (res.status === 401 || res.status === 403) {
+        throw Object.assign(new Error(`LLM_AUTH_ERROR:${config.name}`), { noRetry: true });
+      }
+      throw new Error(`LLM_ERROR:${config.name}:${res.status}:${detail.slice(0, 200)}`);
+    }
+
+    const data = await res.json() as {
+      choices: Array<{ message: { content: string } }>;
+    };
+    const content = data.choices[0]?.message?.content ?? '';
+
+    console.log(`[${config.name}] ${Date.now() - t0}ms — ${content.length} chars`);
+    return content;
   });
-
-  if (!res.ok) {
-    const detail = await res.text();
-    console.error(`[${config.name}] LLM error:`, detail.slice(0, 300));
-    throw new Error(`LLM_ERROR:${config.name}:${detail.slice(0, 200)}`);
-  }
-
-  const data = await res.json() as {
-    choices: Array<{ message: { content: string } }>;
-  };
-  return data.choices[0]?.message?.content ?? '';
 }
 
+// Robust JSON extraction — handles markdown fences, leading text, partial wraps
 export function extractJSON(raw: string): unknown {
-  const clean = raw
-    .replace(/^```(?:json)?\n?/, '')
-    .replace(/\n?```$/, '')
+  if (!raw || raw.trim() === '') throw new Error('EMPTY_RESPONSE');
+
+  // 1. Direct parse (json_object mode returns clean JSON)
+  try { return JSON.parse(raw.trim()); } catch { /* fall through */ }
+
+  // 2. Strip markdown code fences
+  const stripped = raw
+    .replace(/^```(?:json)?\s*/m, '')
+    .replace(/\s*```\s*$/m, '')
     .trim();
-  return JSON.parse(clean);
+  try { return JSON.parse(stripped); } catch { /* fall through */ }
+
+  // 3. Extract first {...} block
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
+    try { return JSON.parse(match[0]); } catch { /* fall through */ }
+  }
+
+  throw new Error(`INVALID_JSON:${raw.slice(0, 100)}`);
 }

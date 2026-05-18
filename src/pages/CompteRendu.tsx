@@ -115,7 +115,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
       const data = await res.json();
       if (!res.ok) {
         setAiError(data.error === 'AI_NOT_CONFIGURED'
-          ? 'Clé API Gemini non configurée dans Vercel.'
+          ? 'Service IA non configuré. Vérifiez les variables d\'environnement Vercel.'
           : 'Erreur lors de la génération du rapport.');
       } else {
         setAiReport(data as AiReport);
@@ -143,7 +143,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
             <div className="flex items-center gap-3">
               <span className="text-2xl">✨</span>
               <div>
-                <p className="font-bold text-primary text-sm">Générer le compte rendu avec Gemini AI</p>
+                <p className="font-bold text-primary text-sm">Générer le compte rendu avec Groq IA</p>
                 <p className="text-xs text-muted">Analyse 7 dimensions, points forts/écarts, questions d'entretien suggérées.</p>
               </div>
             </div>
@@ -167,7 +167,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
 
         {aiReport && (
           <div className="bg-teal-light border border-teal/30 rounded-xl p-3 mb-5 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-teal">✅ Compte rendu généré par Gemini AI</p>
+            <p className="text-sm font-semibold text-teal">✅ Compte rendu généré par Groq IA</p>
             <button
               onClick={() => { setAiReport(null); setAiError(null); }}
               className="text-xs text-muted hover:text-primary border border-border rounded px-2 py-1"
@@ -226,7 +226,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
 
         {/* Analysis */}
         <div className="bg-card rounded-card border border-border p-6 mb-6">
-          <h2 className="text-base font-bold text-primary mb-3">Analyse {aiReport ? 'IA (Gemini)' : 'IA'}</h2>
+          <h2 className="text-base font-bold text-primary mb-3">Analyse {aiReport ? 'IA (Groq)' : 'IA'}</h2>
           <p className="text-sm text-primary leading-relaxed mb-5">{summary}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-success-light rounded-xl p-4">

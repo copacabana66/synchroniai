@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { chatComplete, extractJSON, getLLMConfig } from './lib/llm';
+import { guard, sanitizeText } from './lib/security';
 
 const SYSTEM_PROMPT = `Tu es un expert RH francophone. À partir de la description du recruteur, génère une fiche de poste complète et professionnelle.
-Retourne UNIQUEMENT un JSON strict, sans markdown ni texte autour.
 
 Format JSON attendu :
 {
@@ -19,17 +19,15 @@ Format JSON attendu :
 }
 
 managementStyle doit être : "bienveillant", "objectifs", "directif", "horizontal" ou "autonomie".
-contractType doit être : "CDI", "CDD", "Freelance / Mission" ou "Stage / Alternance".
-Réponds UNIQUEMENT avec le JSON.`;
+contractType doit être : "CDI", "CDD", "Freelance / Mission" ou "Stage / Alternance".`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
+  if (!guard(req, res)) return;
   if (!getLLMConfig()) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
 
-  const { prompt } = req.body as { prompt?: string };
-  if (!prompt || prompt.trim().length < 10) {
-    return res.status(400).json({ error: 'Prompt trop court' });
+  const prompt = sanitizeText((req.body as Record<string, unknown>).prompt, 2000);
+  if (!prompt || prompt.length < 10) {
+    return res.status(400).json({ error: 'Prompt trop court (min 10 caractères)' });
   }
 
   try {

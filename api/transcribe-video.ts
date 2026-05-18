@@ -1,9 +1,10 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { chatComplete, extractJSON, getLLMConfig } from './lib/llm';
+import { guard } from './lib/security';
 
 export const config = { api: { bodyParser: { sizeLimit: '12mb' } } };
 
-// Step 1 — Transcription via Groq Whisper (if GROQ_API_KEY)
+// Groq Whisper transcription — retries once on transient error
 async function groqTranscribe(audioBase64: string, mimeType: string): Promise<string> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error('NO_GROQ_KEY');
@@ -11,27 +12,33 @@ async function groqTranscribe(audioBase64: string, mimeType: string): Promise<st
   const audioBuffer = Buffer.from(audioBase64, 'base64');
   const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm';
 
-  const formData = new FormData();
-  formData.append('file', new File([audioBuffer], `audio.${ext}`, { type: mimeType }));
-  formData.append('model', 'whisper-large-v3-turbo');
-  formData.append('language', 'fr');
-  formData.append('response_format', 'text');
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const formData = new FormData();
+    formData.append('file', new File([audioBuffer], `audio.${ext}`, { type: mimeType }));
+    formData.append('model', 'whisper-large-v3-turbo');
+    formData.append('language', 'fr');
+    formData.append('response_format', 'text');
 
-  const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${apiKey}` },
-    body: formData,
-  });
+    const res = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${apiKey}` },
+      body: formData,
+    });
 
-  if (!res.ok) {
+    if (res.ok) return await res.text();
+
+    if (attempt === 0) {
+      await new Promise(r => setTimeout(r, 800));
+      continue;
+    }
     const err = await res.text();
     throw new Error(`Groq Whisper error: ${err.slice(0, 200)}`);
   }
-  return await res.text();
+  throw new Error('Groq Whisper: max retries exceeded');
 }
 
-// Step 2 — Communication analysis via LLM
-const ANALYSIS_PROMPT = `Tu es un expert en communication orale. Analyse cette transcription d'une présentation candidat et retourne UNIQUEMENT un JSON strict.
+const ANALYSIS_PROMPT = `Tu es un expert en communication orale. Analyse cette transcription d'une présentation candidat.
+Conformité AI Act totale — analyse uniquement l'expression orale, jamais l'apparence, le genre ou l'origine.
 
 Format JSON attendu :
 {
@@ -39,41 +46,41 @@ Format JSON attendu :
   "clarityScore": 82,
   "structureScore": 75,
   "fluencyScore": 80,
-  "analysisNotes": "2-3 phrases d'observation objective sur la clarté, la structure et l'aisance. NE PAS juger l'origine, genre ou apparence.",
+  "analysisNotes": "2-3 phrases d'observation objective sur la clarté, la structure et l'aisance orale.",
   "keyThemes": ["thème1", "thème2"],
   "communicationStrengths": ["point fort 1", "point fort 2"],
   "communicationAreas": ["axe d'amélioration 1"]
 }
 
-Les scores sont sur 100. Conformité AI Act totale. Réponds UNIQUEMENT avec le JSON.`;
+Scores sur 100.`;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
+  if (!guard(req, res)) return;
   if (!getLLMConfig()) return res.status(503).json({ error: 'AI_NOT_CONFIGURED' });
 
-  const { audioBase64, mimeType } = req.body as { audioBase64?: string; mimeType?: string };
-  if (!audioBase64 || !mimeType) {
+  const body = req.body as { audioBase64?: string; mimeType?: string };
+  if (!body.audioBase64 || !body.mimeType) {
     return res.status(400).json({ error: 'audioBase64 et mimeType requis' });
   }
 
-  try {
-    // Transcribe audio
-    let transcript = '';
-    try {
-      transcript = await groqTranscribe(audioBase64, mimeType);
-    } catch (e) {
-      // If Groq Whisper unavailable, ask LLM to generate a placeholder analysis
-      console.warn('Whisper unavailable, using LLM-only analysis:', e);
-      transcript = '[Transcription non disponible — analyse basée sur les données du questionnaire]';
-    }
+  // Validate audio size before processing (base64 → ~75% of original)
+  if (body.audioBase64.length > 14_000_000) {
+    return res.status(413).json({ error: 'AUDIO_TOO_LARGE', detail: 'Max 10 MB audio' });
+  }
 
-    // Analyze with LLM
+  let transcript = '';
+  try {
+    transcript = await groqTranscribe(body.audioBase64, body.mimeType);
+  } catch (e) {
+    console.warn('Whisper unavailable, using placeholder:', e);
+    transcript = '[Transcription non disponible — analyse basée sur les données du questionnaire]';
+  }
+
+  try {
     const raw = await chatComplete([
       { role: 'system', content: ANALYSIS_PROMPT },
-      { role: 'user',   content: `Transcription à analyser :\n\n${transcript}` },
+      { role: 'user',   content: `Transcription :\n\n${transcript.slice(0, 4000)}` },
     ]);
-
     return res.status(200).json(extractJSON(raw));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);

@@ -115,13 +115,12 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
 
   // ── CV upload & analysis ──────────────────────────────────────────────────
   async function handleCvFile(file: File) {
-    // Gemini inline_data only supports PDF
     if (file.type !== 'application/pdf') {
       setCvError('Seul le format PDF est accepté. Convertissez votre CV en PDF et réessayez.');
       return;
     }
-    if (file.size > 4 * 1024 * 1024) {
-      setCvError('Fichier trop volumineux (max 4 MB). Compressez votre PDF et réessayez.');
+    if (file.size > 5 * 1024 * 1024) {
+      setCvError('Fichier trop volumineux (max 5 MB). Compressez votre PDF et réessayez.');
       return;
     }
 
@@ -146,11 +145,12 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
       const data = await res.json();
       if (!res.ok) {
         const errorMap: Record<string, string> = {
-          AI_NOT_CONFIGURED: 'Clé API Gemini non configurée sur le serveur.',
+          AI_NOT_CONFIGURED: 'Service IA non configuré. Contactez le support.',
           FORMAT_NOT_SUPPORTED: 'Format non supporté. Utilisez un PDF.',
-          FILE_TOO_LARGE: 'PDF trop volumineux. Essayez de le compresser (max ~3 MB).',
-          EMPTY_RESPONSE: 'Gemini n\'a pas pu lire ce PDF. Essayez un autre fichier.',
-          CONTENT_BLOCKED: 'Contenu bloqué par Gemini. Vérifiez le fichier.',
+          FILE_TOO_LARGE: 'PDF trop volumineux. Essayez de le compresser (max ~4 MB).',
+          EMPTY_RESPONSE: 'L\'IA n\'a pas pu lire ce PDF. Essayez un autre fichier.',
+          CONTENT_BLOCKED: 'Contenu non analysable. Vérifiez le fichier.',
+          TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
         };
         setCvError(errorMap[data.error] ?? `Erreur : ${data.detail ?? data.error ?? 'Inconnue'}`);
       } else {
@@ -219,7 +219,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
       });
       const data = await res.json();
       if (!res.ok) {
-        setVideoError(data.error === 'AI_NOT_CONFIGURED' ? 'Clé API non configurée.' : 'Erreur d\'analyse audio.');
+        setVideoError(data.error === 'AI_NOT_CONFIGURED' ? 'Service IA non configuré.' : data.error === 'TOO_MANY_REQUESTS' ? 'Trop de requêtes, attendez une minute.' : 'Erreur d\'analyse audio.');
       } else {
         const parsed = data as VideoAnalysisData;
         setVideoData(parsed);
@@ -297,11 +297,17 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
         {step === 0 && (
           <div>
             <h2 className="text-lg font-bold text-primary mb-1">Importez votre CV</h2>
-            <p className="text-sm text-muted mb-4">Gemini AI extrait vos compétences réelles — aucune donnée inventée.</p>
+            <p className="text-sm text-muted mb-4">L'IA Groq extrait vos compétences réelles — aucune donnée inventée.</p>
 
-            {/* Drop zone */}
+            {/* Drop zone — click ou glisser-déposer */}
             <label
               htmlFor="cv-upload"
+              onDragOver={e => { e.preventDefault(); }}
+              onDrop={e => {
+                e.preventDefault();
+                const f = e.dataTransfer.files?.[0];
+                if (f) handleCvFile(f);
+              }}
               className={`block border-2 border-dashed rounded-xl py-12 text-center mb-4 cursor-pointer transition-all ${
                 cvData ? 'border-teal bg-teal-light' : cvLoading ? 'border-teal/40 bg-bg' : 'border-border hover:border-teal/40 bg-bg'
               }`}
@@ -317,7 +323,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
                 <>
                   <div className="w-10 h-10 border-4 border-teal/20 border-t-teal rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-primary font-semibold">Analyse en cours…</p>
-                  <p className="text-muted text-sm mt-1">Gemini lit votre CV</p>
+                  <p className="text-muted text-sm mt-1">Groq IA analyse votre CV</p>
                 </>
               ) : cvData ? (
                 <>
@@ -329,7 +335,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
                 <>
                   <div className="text-4xl mb-3">📄</div>
                   <p className="text-primary font-semibold mb-1">Cliquez ou glissez votre CV ici</p>
-                  <p className="text-muted text-sm">PDF uniquement · max 4 MB</p>
+                  <p className="text-muted text-sm">PDF uniquement · max 5 MB · glisser-déposer accepté</p>
                 </>
               )}
             </label>
@@ -450,7 +456,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
                   <>
                     <div className="w-10 h-10 border-4 border-teal/20 border-t-teal rounded-full animate-spin mx-auto mb-3" />
                     <p className="text-primary font-semibold">Transcription & analyse en cours…</p>
-                    <p className="text-muted text-sm mt-1">Gemini analyse votre audio</p>
+                    <p className="text-muted text-sm mt-1">Groq Whisper analyse votre audio</p>
                   </>
                 ) : (
                   <>
