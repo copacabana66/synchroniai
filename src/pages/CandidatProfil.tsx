@@ -1,46 +1,15 @@
 import { useState, useRef, useEffect } from 'react';
 import type { PageName, AnalysisStatus, CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
 import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile } from '../lib/candidateService';
-import * as pdfjs from 'pdfjs-dist';
-import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 
-// jsDelivr CDN — 99.99% uptime, Cloudflare-backed, supporte les ESM workers
-// Nécessaire : pdfjs-dist v5 ne fournit que des .mjs (ES modules).
-// Le ?url Vite retourne une URL chargée comme classic worker → échec.
-// pdfjs détecte l'extension .mjs dans l'URL CDN et crée un module worker correct.
-pdfjs.GlobalWorkerOptions.workerSrc =
-  `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
-
-// Codes d'erreur pdfjs internes pour messages précis
-type PdfjsError = { name?: string; message?: string };
-
-async function extractPdfText(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-
-  let pdf: Awaited<ReturnType<typeof pdfjs.getDocument>['promise']>;
-  try {
-    pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
-  } catch (e) {
-    const err = e as PdfjsError;
-    // pdfjs lève des erreurs typées — on les traduit pour l'utilisateur
-    if (err?.name === 'PasswordException') throw new Error('PDF_ENCRYPTED');
-    if (err?.name === 'InvalidPDFException')  throw new Error('PDF_INVALID');
-    if (err?.name === 'MissingPDFException')  throw new Error('PDF_MISSING');
-    console.error('[pdfjs] Erreur chargement :', err);
-    throw new Error('PDF_LOAD_ERROR');
-  }
-
-  const pages: string[] = [];
-  for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
-    const page = await pdf.getPage(i);
-    const content = await page.getTextContent();
-    const text = content.items
-      .filter((item): item is TextItem => 'str' in item)
-      .map((item) => item.str)
-      .join(' ');
-    pages.push(text);
-  }
-  return pages.join('\n\n').trim();
+// Convertit un File en base64 pur (sans le préfixe data:...)
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload  = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 interface CandidatProfilProps {
@@ -138,8 +107,9 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
       setCvError('Seul le format PDF est accepté. Convertissez votre CV en PDF et réessayez.');
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      setCvError('Fichier trop volumineux (max 5 MB). Compressez votre PDF et réessayez.');
+    // Max 4.5 MB → base64 ≈ 6 MB, dans la limite Vercel
+    if (file.size > 4.5 * 1024 * 1024) {
+      setCvError('Fichier trop volumineux (max 4,5 MB). Compressez votre PDF et réessayez.');
       return;
     }
 
@@ -148,78 +118,64 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
     setCvLoading(true);
     setCvData(null);
 
-    // ── Étape 1 : extraction du texte PDF (erreur isolée) ────────────────────
-    let cvText = '';
+    // ── Étape 1 : encodage base64 (extraction PDF faite côté serveur) ────────
+    let pdfBase64: string;
     try {
-      cvText = await extractPdfText(file);
-    } catch (e) {
-      const code = e instanceof Error ? e.message : '';
-      const pdfErrorMap: Record<string, string> = {
-        PDF_ENCRYPTED:  'Ce PDF est protégé par un mot de passe. Enregistrez-le sans protection et réessayez.',
-        PDF_INVALID:    'Ce PDF est corrompu. Régénérez-le depuis Word, LibreOffice ou un outil en ligne.',
-        PDF_MISSING:    'Le fichier PDF est introuvable ou vide. Réessayez.',
-        PDF_LOAD_ERROR: 'Erreur technique lors de la lecture du PDF. Réessayez ou utilisez un autre navigateur (Chrome recommandé).',
-      };
-      setCvError(pdfErrorMap[code] ?? 'Erreur lors de la lecture du PDF. Réessayez ou utilisez Chrome.');
+      pdfBase64 = await fileToBase64(file);
+    } catch {
+      setCvError('Impossible de lire le fichier. Réessayez ou utilisez un autre PDF.');
       setCvLoading(false);
       return;
     }
 
-    if (!cvText || cvText.length < 50) {
-      setCvError('Ce PDF ne contient pas de texte lisible. Utilisez un PDF généré par Word, LibreOffice ou un outil en ligne.');
-      setCvLoading(false);
-      return;
-    }
-
-    // ── Étape 2 : appel API (timeout 45s, erreurs réseau isolées) ────────────
+    // ── Étape 2 : appel API (timeout 60s — extraction + analyse LLM) ─────────
     let res: Response;
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 45_000);
+      const timeout = setTimeout(() => controller.abort(), 60_000);
       res = await fetch('/api/analyze-cv', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cvText }),
+        body: JSON.stringify({ pdfBase64 }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
     } catch (e) {
       const isTimeout = e instanceof Error && e.name === 'AbortError';
-      console.error('[CV] Erreur réseau :', e);
       setCvError(isTimeout
-        ? 'L\'analyse a pris trop de temps (>45s). Réessayez dans quelques instants.'
+        ? "L'analyse a pris trop de temps (>60s). Réessayez."
         : 'Impossible de joindre le serveur. Vérifiez votre connexion internet.');
       setCvLoading(false);
       return;
     }
 
-    // ── Étape 3 : parsing JSON (erreur isolée si Vercel renvoie du HTML) ─────
+    // ── Étape 3 : parsing JSON ────────────────────────────────────────────────
     let data: Record<string, unknown>;
     try {
       data = await res.json() as Record<string, unknown>;
     } catch {
-      console.error('[CV] Réponse non-JSON, statut HTTP :', res.status);
       setCvError(`Réponse invalide du serveur (HTTP ${res.status}). Réessayez dans quelques instants.`);
       setCvLoading(false);
       return;
     }
 
-    // ── Étape 4 : traitement du résultat ─────────────────────────────────────
+    // ── Étape 4 : résultat ───────────────────────────────────────────────────
     if (!res.ok) {
       const errorMap: Record<string, string> = {
         AI_NOT_CONFIGURED: 'Service IA non configuré. Contactez le support.',
-        FORMAT_NOT_SUPPORTED: 'Format non supporté. Utilisez un PDF.',
-        FILE_TOO_LARGE: 'PDF trop volumineux. Compressez-le (max ~4 MB).',
-        EMPTY_RESPONSE: 'L\'IA n\'a pas pu analyser ce CV. Essayez un autre fichier.',
-        CONTENT_BLOCKED: 'Contenu non analysable. Vérifiez le fichier.',
+        FILE_TOO_LARGE:    'PDF trop volumineux. Compressez-le (max 4,5 MB).',
+        PDF_PARSE_ERROR:   'Le PDF est illisible ou corrompu. Régénérez-le depuis Word ou LibreOffice.',
+        PDF_EMPTY:         'Le PDF est vide.',
+        EMPTY_CV:          'Ce PDF ne contient pas de texte lisible. Utilisez un PDF généré par Word ou LibreOffice (pas un scan).',
+        EMPTY_RESPONSE:    "L'IA n'a pas pu analyser ce CV. Essayez un autre fichier.",
         TOO_MANY_REQUESTS: 'Trop de requêtes. Attendez une minute et réessayez.',
       };
-      setCvError(errorMap[data.error as string] ?? `Erreur serveur : ${data.detail ?? data.error ?? `HTTP ${res.status}`}`);
+      setCvError(errorMap[data.error as string] ?? `Erreur : ${data.detail ?? data.error ?? `HTTP ${res.status}`}`);
     } else {
       const parsed = data as unknown as CvAnalysisData;
       setCvData(parsed);
       if (userId) {
-        uploadFile('cvs', userId, file, file.name.split('.').pop() ?? 'pdf').then(path => {
+        uploadFile('cvs', userId, file, 'pdf').then(path => {
           saveCvAnalysis(userId, parsed, path ?? undefined);
         });
       }

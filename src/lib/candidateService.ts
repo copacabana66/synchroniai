@@ -1,15 +1,16 @@
 import { supabase, isConfigured } from './supabase';
 import type { CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
 
-interface ProfileRow {
+export interface ProfileRow {
   id: string;
   full_name?: string;
   email?: string;
   cv_url?: string;
-  cv_text?: string;
+  cv_text?: string;           // JSON stringifié de CvAnalysisData
   cv_analyzed_at?: string;
   video_url?: string;
   video_transcript?: string;
+  video_analysis?: string;    // JSON stringifié de VideoAnalysisData
   video_analyzed_at?: string;
   management_pref?: string;
   environment_pref?: string;
@@ -44,13 +45,25 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
   return data;
 }
 
+// Retourne tous les candidats ayant au moins complété le CV (pour les recruteurs)
+export async function fetchAllCandidates(): Promise<ProfileRow[]> {
+  if (!isConfigured) return [];
+  const { data, error } = await supabase
+    .from('candidate_profiles')
+    .select('*')
+    .eq('analysis_cv', true)
+    .order('updated_at', { ascending: false });
+  if (error) { console.error('fetchAllCandidates error:', error.message); return []; }
+  return data ?? [];
+}
+
 export async function saveCvAnalysis(userId: string, cvData: CvAnalysisData, cvUrl?: string): Promise<void> {
   await upsertProfile(userId, {
-    full_name:       cvData.fullName,
-    cv_url:          cvUrl ?? '',
-    cv_text:         JSON.stringify(cvData),
-    cv_analyzed_at:  new Date().toISOString(),
-    analysis_cv:     true,
+    full_name:      cvData.fullName,
+    cv_url:         cvUrl ?? '',
+    cv_text:        JSON.stringify(cvData),
+    cv_analyzed_at: new Date().toISOString(),
+    analysis_cv:    true,
   });
 }
 
@@ -58,6 +71,7 @@ export async function saveVideoAnalysis(userId: string, videoData: VideoAnalysis
   await upsertProfile(userId, {
     video_url:        videoUrl ?? '',
     video_transcript: videoData.transcript,
+    video_analysis:   JSON.stringify(videoData),
     video_analyzed_at: new Date().toISOString(),
     analysis_video:   true,
   });
@@ -65,10 +79,10 @@ export async function saveVideoAnalysis(userId: string, videoData: VideoAnalysis
 
 export async function saveQuestionnaire(userId: string, q: QuestionnaireData): Promise<void> {
   await upsertProfile(userId, {
-    management_pref:   q.managementPref,
-    environment_pref:  q.environmentPref,
-    collaboration_pref:q.collaborationPref,
-    rhythm_pref:       q.rhythmPref,
+    management_pref:        q.managementPref,
+    environment_pref:       q.environmentPref,
+    collaboration_pref:     q.collaborationPref,
+    rhythm_pref:            q.rhythmPref,
     analysis_questionnaire: true,
   });
 }
@@ -77,14 +91,13 @@ export async function savePreferences(userId: string, prefs: {
   location: string; salary: string; contractType: string; availability: string;
 }): Promise<void> {
   await upsertProfile(userId, {
-    location_pref:     prefs.location,
-    salary_expectation:prefs.salary,
-    contract_type:     prefs.contractType,
-    availability:      prefs.availability,
+    location_pref:      prefs.location,
+    salary_expectation: prefs.salary,
+    contract_type:      prefs.contractType,
+    availability:       prefs.availability,
   });
 }
 
-// Upload file to Supabase Storage, return public path
 export async function uploadFile(
   bucket: 'cvs' | 'videos',
   userId: string,

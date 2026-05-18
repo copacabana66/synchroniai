@@ -1,96 +1,114 @@
--- ═══════════════════════════════════════════════════════════════
+-- ============================================================
 -- SynchroniAI — Schéma Supabase
--- À exécuter dans : Supabase → SQL Editor → New query
--- ═══════════════════════════════════════════════════════════════
+-- Supabase Dashboard → SQL Editor → New query → Run
+-- ============================================================
 
--- 1. Fiches de poste (recruteurs)
-create table if not exists job_postings (
-  id               uuid default gen_random_uuid() primary key,
-  recruiter_id     uuid references auth.users on delete cascade,
-  title            text not null,
-  company          text,
-  location         text,
-  contract_type    text,
-  salary_min       integer,
-  salary_max       integer,
-  description      text,
-  expectations     text,
-  team_profile     text,
-  management_style text check (management_style in ('bienveillant','objectifs','directif','horizontal','autonomie')),
-  management_detail text,
-  status           text default 'draft' check (status in ('draft','published','closed')),
-  created_at       timestamptz default now(),
-  updated_at       timestamptz default now()
-);
-
-alter table job_postings enable row level security;
-create policy "Recruteur voit ses propres fiches"
-  on job_postings for all
-  using (auth.uid() = recruiter_id);
-
--- 2. Profils candidats
+-- 1. Profils candidats
 create table if not exists candidate_profiles (
-  id                   uuid references auth.users on delete cascade primary key,
-  full_name            text,
-  email                text,
-  -- CV
-  cv_url               text,  -- Supabase Storage path
-  cv_text              text,  -- Texte extrait par IA
-  cv_analyzed_at       timestamptz,
-  -- Vidéo
-  video_url            text,
-  video_transcript     text,
-  video_analyzed_at    timestamptz,
-  -- Questionnaire
-  management_pref      text,
-  environment_pref     text,
-  collaboration_pref   text,
-  rhythm_pref          text,
-  -- Préférences
-  location_pref        text,
-  salary_expectation   text,
-  contract_type        text,
-  availability         text,
-  -- Statut analyse
-  analysis_cv          boolean default false,
-  analysis_questionnaire boolean default false,
-  analysis_video       boolean default false,
-  created_at           timestamptz default now(),
-  updated_at           timestamptz default now()
+  id                     uuid primary key references auth.users(id) on delete cascade,
+  full_name              text,
+  email                  text,
+  cv_url                 text,
+  cv_text                text,           -- JSON : CvAnalysisData
+  cv_analyzed_at         timestamptz,
+  video_url              text,
+  video_transcript       text,
+  video_analysis         text,           -- JSON : VideoAnalysisData
+  video_analyzed_at      timestamptz,
+  management_pref        text,
+  environment_pref       text,
+  collaboration_pref     text,
+  rhythm_pref            text,
+  location_pref          text,
+  salary_expectation     text,
+  contract_type          text,
+  availability           text,
+  analysis_cv            boolean not null default false,
+  analysis_questionnaire boolean not null default false,
+  analysis_video         boolean not null default false,
+  updated_at             timestamptz default now()
 );
 
 alter table candidate_profiles enable row level security;
-create policy "Candidat voit son propre profil"
-  on candidate_profiles for all
-  using (auth.uid() = id);
 
--- 3. Candidatures (matching candidat ↔ fiche de poste)
-create table if not exists applications (
-  id                  uuid default gen_random_uuid() primary key,
-  candidate_id        uuid references candidate_profiles(id) on delete cascade,
-  job_posting_id      uuid references job_postings(id) on delete cascade,
-  compatibility_score integer check (compatibility_score between 0 and 100),
-  -- Rapport IA structuré
-  report              jsonb,   -- { dimensions: {...}, strengths: [...], gaps: [...], recommendation: "" }
-  status              text default 'pending' check (status in ('pending','reviewing','accepted','rejected')),
-  applied_at          timestamptz default now(),
-  updated_at          timestamptz default now(),
-  unique (candidate_id, job_posting_id)
+drop policy if exists "candidat_own_select"        on candidate_profiles;
+drop policy if exists "candidat_own_insert"        on candidate_profiles;
+drop policy if exists "candidat_own_update"        on candidate_profiles;
+drop policy if exists "recruiter_see_candidates"   on candidate_profiles;
+-- anciens noms éventuels
+drop policy if exists "Candidat lit son profil"             on candidate_profiles;
+drop policy if exists "Candidat crée/met à jour son profil" on candidate_profiles;
+drop policy if exists "Candidat met à jour son profil"      on candidate_profiles;
+drop policy if exists "Recruteurs voient les candidats"     on candidate_profiles;
+
+create policy "candidat_own_select"       on candidate_profiles for select using (auth.uid() = id);
+create policy "candidat_own_insert"       on candidate_profiles for insert with check (auth.uid() = id);
+create policy "candidat_own_update"       on candidate_profiles for update using (auth.uid() = id);
+create policy "recruiter_see_candidates"  on candidate_profiles for select using (analysis_cv = true);
+
+
+-- 2. Fiches de poste
+create table if not exists job_postings (
+  id                uuid primary key default gen_random_uuid(),
+  recruiter_id      uuid references auth.users(id) on delete cascade,
+  title             text not null,
+  company           text,
+  location          text,
+  contract_type     text,
+  salary_min        integer,
+  salary_max        integer,
+  description       text,
+  expectations      text,
+  team_profile      text,
+  management_style  text,
+  management_detail text,
+  status            text not null default 'draft' check (status in ('draft','published','closed')),
+  created_at        timestamptz default now(),
+  updated_at        timestamptz default now()
 );
 
-alter table applications enable row level security;
-create policy "Candidat voit ses candidatures"
-  on applications for select
-  using (auth.uid() = candidate_id);
-create policy "Recruteur voit candidatures de ses fiches"
-  on applications for select
-  using (
-    exists (
-      select 1 from job_postings jp
-      where jp.id = job_posting_id and jp.recruiter_id = auth.uid()
-    )
-  );
+alter table job_postings enable row level security;
 
--- 4. Bucket Storage (à créer manuellement dans Supabase → Storage)
--- Bucket "cvs"    : accès privé, taille max 10MB, types acceptés: pdf, docx
--- Bucket "videos" : accès privé, taille max 200MB, types acceptés: mp4, webm, mov
+drop policy if exists "recruiter_own_postings"              on job_postings;
+drop policy if exists "candidates_see_published"            on job_postings;
+-- anciens noms éventuels
+drop policy if exists "Recruteur voit ses propres fiches"   on job_postings;
+drop policy if exists "Recruteur gère ses fiches"           on job_postings;
+drop policy if exists "Candidats voient les fiches publiées" on job_postings;
+
+create policy "recruiter_own_postings"   on job_postings for all
+  using (auth.uid() = recruiter_id)
+  with check (auth.uid() = recruiter_id);
+
+create policy "candidates_see_published" on job_postings for select
+  using (status = 'published');
+
+
+-- 3. Buckets de stockage
+insert into storage.buckets (id, name, public) values ('cvs', 'cvs', false)
+  on conflict (id) do nothing;
+
+insert into storage.buckets (id, name, public) values ('videos', 'videos', false)
+  on conflict (id) do nothing;
+
+drop policy if exists "cv_upload_own"    on storage.objects;
+drop policy if exists "cv_read_own"      on storage.objects;
+drop policy if exists "audio_upload_own" on storage.objects;
+drop policy if exists "audio_read_own"   on storage.objects;
+-- anciens noms éventuels
+drop policy if exists "Upload CV propre dossier"    on storage.objects;
+drop policy if exists "Lecture CV propre dossier"   on storage.objects;
+drop policy if exists "Upload audio propre dossier" on storage.objects;
+drop policy if exists "Lecture audio propre dossier" on storage.objects;
+
+create policy "cv_upload_own"    on storage.objects for insert
+  with check (bucket_id = 'cvs'    and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "cv_read_own"      on storage.objects for select
+  using     (bucket_id = 'cvs'    and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "audio_upload_own" on storage.objects for insert
+  with check (bucket_id = 'videos' and auth.uid()::text = (storage.foldername(name))[1]);
+
+create policy "audio_read_own"   on storage.objects for select
+  using     (bucket_id = 'videos' and auth.uid()::text = (storage.foldername(name))[1]);

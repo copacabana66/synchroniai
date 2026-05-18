@@ -85,7 +85,7 @@ export default function App() {
       {page === 'register'   && <Register setPage={setPage} setUser={handleSetUser} planChoice={planChoice} />}
 
       {page === 'recruteur' && (
-        <RecruteurDashboard setPage={navigateTo} setSelectedCandidate={setSelectedCandidate} />
+        <RecruteurDashboard setPage={navigateTo} userId={user?.id ?? ''} />
       )}
       {page === 'compte-rendu' && (
         <CompteRendu candidate={selectedCandidate} setPage={navigateTo} />
