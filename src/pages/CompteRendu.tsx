@@ -164,7 +164,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
             <div className="flex items-center gap-3">
               <span className="text-2xl">✨</span>
               <div>
-                <p className="font-bold text-primary text-sm">Générer le compte rendu avec Synchroni Engine</p>
+                <p className="font-bold text-primary text-sm">Générer le compte rendu avec SynchroniAI</p>
                 <p className="text-xs text-muted">Analyse 7 dimensions, points forts/écarts, questions d'entretien suggérées.</p>
               </div>
             </div>
@@ -175,7 +175,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
             >
               {aiLoading
                 ? <><span className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />Analyse…</>
-                : '✨ Analyser avec Synchroni l\'IA'}
+                : '✨ Analyser avec SynchroniAI'}
             </button>
           </div>
         )}
@@ -188,7 +188,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
 
         {aiReport && (
           <div className="bg-teal-light border border-teal/30 rounded-xl p-3 mb-5 flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-teal">✅ Compte rendu généré par Synchroni Engine</p>
+            <p className="text-sm font-semibold text-teal">✅ Compte rendu généré par SynchroniAI</p>
             <button
               onClick={() => { setAiReport(null); setAiError(null); }}
               className="text-xs text-muted hover:text-primary border border-border rounded px-2 py-1"
@@ -247,7 +247,7 @@ export function CompteRendu({ candidate, setPage }: CompteRenduProps) {
 
         {/* Analysis */}
         <div className="bg-card rounded-card border border-border p-6 mb-6">
-          <h2 className="text-base font-bold text-primary mb-3">Analyse {aiReport ? 'Synchroni' : 'compatibilité'}</h2>
+          <h2 className="text-base font-bold text-primary mb-3">Analyse {aiReport ? 'SynchroniAI' : 'compatibilité'}</h2>
           <p className="text-sm text-primary leading-relaxed mb-5">{summary}</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-success-light rounded-xl p-4">

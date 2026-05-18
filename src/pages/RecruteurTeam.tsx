@@ -111,7 +111,7 @@ export function RecruteurTeam({ setPage, recruiterId }: Props) {
           </span>
           <h1 className="text-h1 text-primary mb-2">L'ADN de votre équipe</h1>
           <p className="text-ink text-sm max-w-xl">
-            Décrivez vos collaborateurs en place. Synchroni identifie votre profil collectif et
+            Décrivez vos collaborateurs en place. SynchroniAI identifie votre profil collectif et
             le candidat qui complétera vraiment votre équipe — pas un clone de plus.
           </p>
         </div>

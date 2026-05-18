@@ -216,7 +216,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
         </button>
         <div className="mb-6">
           <h1 className="text-2xl font-extrabold text-primary tracking-tight">Créer une fiche de poste</h1>
-          <p className="text-muted text-sm mt-1">Saisissez manuellement ou laissez Synchroni rédiger pour vous.</p>
+          <p className="text-muted text-sm mt-1">Saisissez manuellement ou laissez SynchroniAI rédiger pour vous.</p>
         </div>
 
         {/* Mode toggle */}
@@ -235,7 +235,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
               mode === 'ai' ? 'bg-primary text-white' : 'text-muted hover:text-primary'
             }`}
           >
-            ✨ Générer avec Synchroni
+            ✨ Générer avec SynchroniAI
           </button>
         </div>
 
@@ -245,8 +245,8 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
             <div className="flex items-start gap-3 mb-4">
               <div className="w-10 h-10 rounded-xl bg-teal-light flex items-center justify-center text-xl flex-shrink-0">✨</div>
               <div>
-                <h3 className="font-bold text-primary">Assistant Synchroni — Génération de fiche de poste</h3>
-                <p className="text-sm text-muted">Décrivez votre besoin en quelques phrases. Synchroni complète toute la fiche pour vous.</p>
+                <h3 className="font-bold text-primary">Assistant SynchroniAI — Génération de fiche de poste</h3>
+                <p className="text-sm text-muted">Décrivez votre besoin en quelques phrases. SynchroniAI complète toute la fiche pour vous.</p>
               </div>
             </div>
 
@@ -299,7 +299,7 @@ export function RecruteurFichePoste({ setPage, recruiterId, companyName }: Recru
             </button>
 
             <p className="text-xs text-muted text-center mt-3">
-              Alimenté par Synchroni Engine (Llama 3.3 70B) · La fiche générée reste entièrement modifiable
+              Alimenté par SynchroniAI (Llama 3.3 70B) · La fiche générée reste entièrement modifiable
             </p>
           </div>
         )}

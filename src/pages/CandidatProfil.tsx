@@ -382,7 +382,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
                 <>
                   <div className="w-10 h-10 border-4 border-teal/20 border-t-teal rounded-full animate-spin mx-auto mb-3" />
                   <p className="text-primary font-semibold">Analyse en cours…</p>
-                  <p className="text-muted text-sm mt-1">Synchroni Engine analyse votre CV</p>
+                  <p className="text-muted text-sm mt-1">SynchroniAI analyse votre CV</p>
                 </>
               ) : cvData ? (
                 <>
@@ -482,7 +482,7 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
         {step === 2 && (
           <div>
             <h2 className="text-lg font-bold text-primary mb-1">Présentation audio</h2>
-            <p className="text-sm text-muted mb-4">Enregistrez jusqu'à 90 secondes. Synchroni analyse uniquement votre expression orale — pas votre apparence.</p>
+            <p className="text-sm text-muted mb-4">Enregistrez jusqu'à 90 secondes. SynchroniAI analyse uniquement votre expression orale — pas votre apparence.</p>
 
             {/* Recorder */}
             {!videoData && (
