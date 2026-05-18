@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { chatComplete, extractJSON, getLLMConfig } from './lib/llm';
-import { guard, sanitizeText } from './lib/security';
+import { chatComplete, extractJSON, getLLMConfig } from './lib/llm.js';
+import { guard, sanitizeText } from './lib/security.js';
 
 const SYSTEM_PROMPT = `Tu es un expert RH francophone. À partir de la description du recruteur, génère une fiche de poste complète et professionnelle.
 

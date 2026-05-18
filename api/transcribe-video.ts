@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { chatComplete, extractJSON, getLLMConfig } from './lib/llm';
-import { guard } from './lib/security';
+import { chatComplete, extractJSON, getLLMConfig } from './lib/llm.js';
+import { guard } from './lib/security.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '12mb' } } };
 

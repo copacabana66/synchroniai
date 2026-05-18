@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const pdfParse = require('pdf-parse') as (buf: Buffer) => Promise<{ text: string }>;
-import { chatComplete, extractJSON, getLLMConfig } from './lib/llm';
-import { guard, sanitizeText } from './lib/security';
+import { chatComplete, extractJSON, getLLMConfig } from './lib/llm.js';
+import { guard, sanitizeText } from './lib/security.js';
 
 // Accept PDF binaries up to 6 MB (base64 ~4.5 MB PDF → ~6 MB string)
 export const config = { api: { bodyParser: { sizeLimit: '6mb' } } };
