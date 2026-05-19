@@ -10,7 +10,8 @@ import { fetchNotes, upsertNote, type RecruiterNote } from '../lib/notesService'
 import { arrayToCSV, downloadFile, printPdf } from '../lib/exportHelpers';
 import {
   fetchRecruiterApplications, updateApplicationStatus,
-  STATUS_LABEL, STATUS_COLOR,
+  STATUS_LABEL as APP_STATUS_LABEL,
+  STATUS_COLOR as APP_STATUS_COLOR,
   type Application, type ApplicationStatus,
 } from '../lib/applicationsService';
 
@@ -329,7 +330,7 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
                 const job  = jobPostings.find(j => j.id === app.job_posting_id);
                 const cand = candidates.find(c => c.profile.id === app.candidate_id);
                 const candName = cand?.cvData?.fullName ?? cand?.profile.full_name ?? 'Candidat anonyme';
-                const colors = STATUS_COLOR[app.status];
+                const colors = APP_STATUS_COLOR[app.status];
 
                 return (
                   <div key={app.id} className="flex flex-wrap items-center gap-3 p-3 border border-border rounded-card hover:bg-bg transition-colors">
@@ -354,7 +355,7 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
                       className="text-xs font-semibold px-3 py-1 rounded-pill flex-shrink-0"
                       style={{ background: colors.bg, color: colors.fg }}
                     >
-                      {STATUS_LABEL[app.status]}
+                      {APP_STATUS_LABEL[app.status]}
                     </span>
 
                     <select
