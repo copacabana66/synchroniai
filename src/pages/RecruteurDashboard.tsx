@@ -58,6 +58,8 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
   const [sortBy, setSortBy]             = useState<'score' | 'date'>('score');
   const [expanded, setExpanded]         = useState<string | null>(null);
   const [notes, setNotes]               = useState<Record<string, RecruiterNote>>({});
+  const [minScore, setMinScore]         = useState(60);   // seuil de compatibilité affiché
+  const [hasMatched, setHasMatched]     = useState(false); // matching déjà lancé au moins une fois ?
 
   // Chargement initial des fiches de poste, candidats et notes
   useEffect(() => {
@@ -138,6 +140,7 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
       })
     );
     setCandidates(updated);
+    setHasMatched(true);
     setMatching(false);
   }
 
@@ -223,12 +226,14 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
     upsertNote(userId, candidateId, patch);
   }
 
-  const filtered = candidates
+  // Seul un candidat MATCHÉ ET au-dessus du seuil est visible — RGPD/UX : need-to-know
+  const compatible = candidates.filter(c => c.globalScore >= minScore);
+  const filtered = compatible
     .filter(c => filterStatus === 'Tous' || c.status === filterStatus)
     .sort((a, b) => sortBy === 'score' ? b.globalScore - a.globalScore : 0);
 
   const scored = candidates.filter(c => c.globalScore > 0);
-  const avgScore = scored.length ? Math.round(scored.reduce((s, c) => s + c.globalScore, 0) / scored.length) : 0;
+  const avgScore = compatible.length ? Math.round(compatible.reduce((s, c) => s + c.globalScore, 0) / compatible.length) : 0;
 
   const FILTERS = ['Tous', 'Retenu', 'À examiner', 'Insuffisant', 'Non évalué'];
   const STATUS_COLOR: Record<string, string> = {
@@ -272,13 +277,13 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats — basées sur les profils RÉELLEMENT compatibles */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
           {[
-            { icon: '👤', value: candidates.length, label: 'Candidats inscrits', color: '#09C4A0' },
-            { icon: '🎯', value: avgScore ? `${avgScore}%` : '—', label: 'Score moyen', color: '#6851C7' },
-            { icon: '✅', value: candidates.filter(c => c.status === 'Retenu').length, label: 'Retenus', color: '#23B574' },
-            { icon: '📋', value: jobPostings.length, label: 'Fiches de poste', color: '#D48A12' },
+            { icon: '🎯', value: hasMatched ? compatible.length : '—', label: `Profils compatibles (≥${minScore}%)`, color: '#14B8A6' },
+            { icon: '📊', value: avgScore ? `${avgScore}%` : '—', label: 'Score moyen', color: '#8B5CF6' },
+            { icon: '✅', value: compatible.filter(c => c.status === 'Retenu').length, label: 'Profils retenus', color: '#23B574' },
+            { icon: '📋', value: jobPostings.length, label: 'Fiches de poste', color: '#F59E0B' },
           ].map(s => (
             <div key={s.label} className="bg-card rounded-card border border-border p-5">
               <div className="flex items-center gap-3 mb-1">
@@ -290,46 +295,93 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
           ))}
         </div>
 
-        {/* Sélection fiche de poste + lancer matching */}
-        <div className="bg-card border border-border rounded-card p-5 mb-6 flex flex-wrap gap-4 items-end">
-          <div className="flex-1 min-w-48">
-            <label className="block text-xs font-semibold text-muted uppercase mb-2">Fiche de poste à analyser</label>
-            {jobPostings.length === 0 ? (
-              <p className="text-sm text-muted italic">
-                Aucune fiche de poste.{' '}
-                <button onClick={() => setPage('recruteur-fiche-poste')} className="text-teal underline">Créer la première →</button>
-              </p>
-            ) : (
-              <select
-                value={selectedJob}
-                onChange={e => setSelectedJob(e.target.value)}
-                className="w-full border border-border rounded-btn bg-bg px-3 py-2.5 text-sm text-primary focus:outline-none focus:border-teal"
-              >
-                {jobPostings.map(j => (
-                  <option key={j.id} value={j.id}>{j.title} — {j.company || 'Mon entreprise'}</option>
-                ))}
-              </select>
-            )}
+        {/* Sélection fiche de poste + lancer matching + seuil */}
+        <div className="bg-card border border-border rounded-card p-5 mb-6">
+          <div className="flex flex-wrap gap-4 items-end mb-4">
+            <div className="flex-1 min-w-48">
+              <label className="block text-xs font-semibold text-muted uppercase mb-2">Fiche de poste à analyser</label>
+              {jobPostings.length === 0 ? (
+                <p className="text-sm text-muted italic">
+                  Aucune fiche de poste.{' '}
+                  <button onClick={() => setPage('recruteur-fiche-poste')} className="text-teal underline">Créer la première →</button>
+                </p>
+              ) : (
+                <select
+                  value={selectedJob}
+                  onChange={e => setSelectedJob(e.target.value)}
+                  className="w-full border border-border rounded-btn bg-bg px-3 py-2.5 text-sm text-primary focus:outline-none focus:border-teal"
+                >
+                  {jobPostings.map(j => (
+                    <option key={j.id} value={j.id}>{j.title} — {j.company || 'Mon entreprise'}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <button
+              onClick={runMatching}
+              disabled={matching || !selectedJob || candidates.length === 0}
+              className="px-6 py-2.5 rounded-btn bg-primary text-white font-bold text-sm hover:opacity-90 transition-all disabled:opacity-40 flex items-center gap-2"
+            >
+              {matching ? (
+                <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> Analyse en cours…</>
+              ) : hasMatched ? (
+                <>🔄 Relancer le matching</>
+              ) : (
+                <>🎯 Lancer le matching</>
+              )}
+            </button>
           </div>
-          <button
-            onClick={runMatching}
-            disabled={matching || !selectedJob || candidates.length === 0}
-            className="px-6 py-2.5 rounded-btn bg-primary text-white font-bold text-sm hover:opacity-90 transition-all disabled:opacity-40 flex items-center gap-2"
-          >
-            {matching ? (
-              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> Analyse en cours…</>
-            ) : (
-              <> Lancer le matching</>
-            )}
-          </button>
+
+          {/* Seuil de compatibilité — visible uniquement après un premier matching */}
+          {hasMatched && (
+            <div className="pt-4 border-t border-border">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <label className="text-xs font-semibold text-muted uppercase">Seuil de compatibilité affiché</label>
+                <span className="text-sm font-bold text-teal">≥ {minScore}%</span>
+              </div>
+              <input
+                type="range" min={40} max={90} step={5}
+                value={minScore}
+                onChange={e => setMinScore(Number(e.target.value))}
+                className="w-full accent-teal"
+              />
+              <div className="flex justify-between text-[10px] text-muted mt-1">
+                <span>Large (40%)</span>
+                <span>Strict (90%)</span>
+              </div>
+              <p className="text-xs text-muted mt-2">
+                {compatible.length === 0
+                  ? `Aucun candidat n'atteint ${minScore}% de compatibilité. Baissez le seuil ou attirez plus de candidats.`
+                  : `${compatible.length} profil${compatible.length > 1 ? 's' : ''} visible${compatible.length > 1 ? 's' : ''} sur ${scored.length} analysé${scored.length > 1 ? 's' : ''}.`}
+              </p>
+            </div>
+          )}
         </div>
 
         {loading ? (
-          <div className="py-20 text-center text-muted text-sm">Chargement des candidats…</div>
-        ) : candidates.length === 0 ? (
-          <div className="py-20 text-center">
-            <p className="text-muted text-sm mb-3">Aucun candidat n'a encore complété son profil.</p>
-            <p className="text-xs text-muted">Les candidats apparaissent ici après avoir téléchargé leur CV.</p>
+          <div className="py-20 text-center text-muted text-sm">Chargement des fiches de poste…</div>
+        ) : !hasMatched ? (
+          <div className="bg-gradient-to-br from-teal-light to-bg border border-teal/20 rounded-card p-12 text-center">
+            <div className="text-5xl mb-3">🎯</div>
+            <h3 className="text-h2 text-primary mb-2">Découvrez vos candidats compatibles</h3>
+            <p className="text-muted text-sm max-w-md mx-auto mb-5">
+              Sélectionnez une fiche de poste puis lancez le matching. Seuls les profils dont le score
+              de compatibilité dépasse votre seuil seront révélés.
+            </p>
+            <p className="text-xs text-muted">
+              {candidates.length === 0
+                ? "Aucun candidat n'a encore complété son profil. Patience — ils arrivent."
+                : `${candidates.length} candidat${candidates.length > 1 ? 's ont' : ' a'} complété un profil dans la base. Lancez le matching pour voir qui correspond.`}
+            </p>
+          </div>
+        ) : compatible.length === 0 ? (
+          <div className="bg-card border border-border rounded-card p-12 text-center">
+            <div className="text-5xl mb-3">🔍</div>
+            <h3 className="text-h2 text-primary mb-2">Aucun profil ne dépasse {minScore}% pour cette offre</h3>
+            <p className="text-muted text-sm max-w-md mx-auto">
+              Essayez d'abaisser le seuil de compatibilité, ou affinez votre fiche de poste pour
+              attirer les profils adéquats.
+            </p>
           </div>
         ) : (
           <>
