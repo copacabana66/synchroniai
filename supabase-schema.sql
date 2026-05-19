@@ -137,7 +137,42 @@ create policy "notes_own" on recruiter_candidate_notes for all
   with check (auth.uid() = recruiter_id);
 
 
--- 5. Buckets de stockage
+-- 5. Candidatures (postuler à une offre)
+create table if not exists applications (
+  id              uuid primary key default gen_random_uuid(),
+  candidate_id    uuid not null references auth.users(id) on delete cascade,
+  job_posting_id  uuid not null references job_postings(id) on delete cascade,
+  recruiter_id    uuid not null references auth.users(id) on delete cascade,
+  status          text not null default 'pending' check (status in ('pending','reviewed','interview','accepted','rejected')),
+  candidate_message text,
+  match_score     integer,
+  match_report    jsonb,
+  applied_at      timestamptz default now(),
+  updated_at      timestamptz default now(),
+  unique (candidate_id, job_posting_id)
+);
+
+alter table applications enable row level security;
+
+drop policy if exists "applications_candidate_own"    on applications;
+drop policy if exists "applications_recruiter_own"    on applications;
+drop policy if exists "applications_candidate_insert" on applications;
+drop policy if exists "applications_recruiter_update" on applications;
+
+-- Candidat : voit et crée ses propres candidatures
+create policy "applications_candidate_own" on applications for select
+  using (auth.uid() = candidate_id);
+create policy "applications_candidate_insert" on applications for insert
+  with check (auth.uid() = candidate_id);
+
+-- Recruteur : voit les candidatures à ses fiches, peut mettre à jour le statut
+create policy "applications_recruiter_own" on applications for select
+  using (auth.uid() = recruiter_id);
+create policy "applications_recruiter_update" on applications for update
+  using (auth.uid() = recruiter_id);
+
+
+-- 6. Buckets de stockage
 insert into storage.buckets (id, name, public) values ('cvs', 'cvs', false)
   on conflict (id) do nothing;
 

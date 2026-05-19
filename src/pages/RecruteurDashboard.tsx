@@ -8,6 +8,11 @@ import { Avatar } from '../components/Avatar';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { fetchNotes, upsertNote, type RecruiterNote } from '../lib/notesService';
 import { arrayToCSV, downloadFile, printPdf } from '../lib/exportHelpers';
+import {
+  fetchRecruiterApplications, updateApplicationStatus,
+  STATUS_LABEL, STATUS_COLOR,
+  type Application, type ApplicationStatus,
+} from '../lib/applicationsService';
 
 interface RecruteurDashboardProps {
   setPage: (p: PageName) => void;
@@ -60,18 +65,21 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
   const [notes, setNotes]               = useState<Record<string, RecruiterNote>>({});
   const [minScore, setMinScore]         = useState(60);   // seuil de compatibilité affiché
   const [hasMatched, setHasMatched]     = useState(false); // matching déjà lancé au moins une fois ?
+  const [applications, setApplications] = useState<Application[]>([]);
 
-  // Chargement initial des fiches de poste, candidats et notes
+  // Chargement initial des fiches de poste, candidats, notes et candidatures
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [jobs, profiles, notesMap] = await Promise.all([
+      const [jobs, profiles, notesMap, apps] = await Promise.all([
         fetchJobPostings(userId),
         fetchAllCandidates(),
         fetchNotes(userId),
+        fetchRecruiterApplications(userId),
       ]);
       setJobPostings(jobs);
       setNotes(notesMap);
+      setApplications(apps);
       if (jobs.length > 0) setSelectedJob(jobs[0].id);
       // Candidats sans score (pas encore matchés)
       const base: MatchedCandidate[] = profiles.map((p, i) => ({
@@ -210,6 +218,12 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
     printPdf(html, `Compte rendu — ${name}`);
   }
 
+  // ── Mise à jour statut candidature ──────────────────────────────────────
+  async function changeApplicationStatus(appId: string, status: ApplicationStatus) {
+    setApplications(prev => prev.map(a => a.id === appId ? { ...a, status } : a));
+    await updateApplicationStatus(appId, status);
+  }
+
   // ── Sauvegarde annotation ───────────────────────────────────────────────
   function updateNote(candidateId: string, patch: Partial<RecruiterNote>) {
     setNotes(n => ({
@@ -294,6 +308,82 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
             </div>
           ))}
         </div>
+
+        {/* ── Candidatures reçues — visibles UNIQUEMENT si au moins une existe ── */}
+        {applications.length > 0 && (
+          <div className="bg-card border border-border rounded-card p-5 mb-6">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+              <h2 className="text-base font-bold text-primary flex items-center gap-2">
+                📬 Candidatures reçues
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-pill bg-blue-100 text-blue-700">
+                  {applications.length}
+                </span>
+              </h2>
+              <span className="text-xs text-muted">
+                {applications.filter(a => a.status === 'pending').length} non lue{applications.filter(a => a.status === 'pending').length > 1 ? 's' : ''}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              {applications.slice(0, 8).map(app => {
+                const job  = jobPostings.find(j => j.id === app.job_posting_id);
+                const cand = candidates.find(c => c.profile.id === app.candidate_id);
+                const candName = cand?.cvData?.fullName ?? cand?.profile.full_name ?? 'Candidat anonyme';
+                const colors = STATUS_COLOR[app.status];
+
+                return (
+                  <div key={app.id} className="flex flex-wrap items-center gap-3 p-3 border border-border rounded-card hover:bg-bg transition-colors">
+                    <Avatar initials={initials(candName)} color="#14B8A6" size={36} />
+
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-primary text-sm truncate">{candName}</div>
+                      <div className="text-xs text-muted truncate">
+                        Pour <strong>{job?.title ?? 'Offre supprimée'}</strong>
+                        {app.match_score != null && (
+                          <span className="ml-2">· Score au dépôt : <strong>{app.match_score}%</strong></span>
+                        )}
+                      </div>
+                      {app.candidate_message && (
+                        <div className="mt-1 text-xs text-primary bg-bg p-2 rounded border-l-2 border-teal italic line-clamp-2">
+                          « {app.candidate_message} »
+                        </div>
+                      )}
+                    </div>
+
+                    <span
+                      className="text-xs font-semibold px-3 py-1 rounded-pill flex-shrink-0"
+                      style={{ background: colors.bg, color: colors.fg }}
+                    >
+                      {STATUS_LABEL[app.status]}
+                    </span>
+
+                    <select
+                      value={app.status}
+                      onChange={(e) => changeApplicationStatus(app.id, e.target.value as ApplicationStatus)}
+                      className="text-xs border border-border rounded-btn px-2 py-1.5 bg-white text-primary focus:outline-none focus:border-teal cursor-pointer"
+                      title="Changer le statut"
+                    >
+                      <option value="pending">En attente</option>
+                      <option value="reviewed">Vue</option>
+                      <option value="interview">Entretien</option>
+                      <option value="accepted">Acceptée</option>
+                      <option value="rejected">Refusée</option>
+                    </select>
+
+                    <span className="text-[10px] text-muted whitespace-nowrap">
+                      {new Date(app.applied_at!).toLocaleDateString('fr-FR')}
+                    </span>
+                  </div>
+                );
+              })}
+              {applications.length > 8 && (
+                <p className="text-xs text-muted text-center pt-2">
+                  + {applications.length - 8} autre{applications.length - 8 > 1 ? 's' : ''} candidature{applications.length - 8 > 1 ? 's' : ''}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Sélection fiche de poste + lancer matching + seuil */}
         <div className="bg-card border border-border rounded-card p-5 mb-6">

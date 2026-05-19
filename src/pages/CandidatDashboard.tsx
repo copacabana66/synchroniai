@@ -3,6 +3,7 @@ import type { PageName, AnalysisStatus, JobPosting } from '../types';
 import { ScoreBadge } from '../components/ScoreBadge';
 import { fetchJobPostings } from '../lib/jobPostingService';
 import { getProfile } from '../lib/candidateService';
+import { applyToJob, fetchMyApplications, STATUS_LABEL, STATUS_COLOR, type Application } from '../lib/applicationsService';
 
 interface CandidatDashboardProps {
   setPage: (p: PageName) => void;
@@ -45,6 +46,11 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
   const [matching, setMatching]           = useState(false);
   const [expanded, setExpanded]           = useState<string | null>(null);
   const [hasAssessment, setHasAssessment] = useState<boolean>(!!analysis.assessment);
+  const [applications, setApplications]   = useState<Record<string, Application>>({});
+  const [applyingTo, setApplyingTo]       = useState<string | null>(null);
+  const [applyMessage, setApplyMessage]   = useState('');
+  const [applyError, setApplyError]       = useState<string | null>(null);
+  const [submitting, setSubmitting]       = useState(false);
 
   const doneCount = [analysis.cv, analysis.questionnaire, analysis.video, hasAssessment].filter(Boolean).length;
   const fullyComplete = analysisComplete && hasAssessment;
@@ -58,14 +64,59 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
     validation:    fullyComplete,
   };
 
-  // Charge le profil + détecte si l'assessment est déjà fait
+  // Charge le profil + assessment + candidatures existantes
   useEffect(() => {
     if (!userId) return;
     (async () => {
-      const profile = await getProfile(userId);
+      const [profile, apps] = await Promise.all([
+        getProfile(userId),
+        fetchMyApplications(userId),
+      ]);
       if (profile?.analysis_assessment) setHasAssessment(true);
+      const map: Record<string, Application> = {};
+      for (const a of apps) map[a.job_posting_id] = a;
+      setApplications(map);
     })();
   }, [userId]);
+
+  // ── Postuler à une offre ─────────────────────────────────────────────────
+  async function submitApplication(offer: MatchedOffer) {
+    if (!userId || !offer.recruiterId) {
+      setApplyError("Impossible de postuler — informations manquantes.");
+      return;
+    }
+    setSubmitting(true);
+    setApplyError(null);
+    const result = await applyToJob({
+      candidateId:   userId,
+      jobPostingId:  offer.id,
+      recruiterId:   offer.recruiterId,
+      matchScore:    offer.globalScore,
+      matchReport:   {
+        summary: offer.summary,
+        dimensions: offer.dimensions,
+        recommendation: offer.recommendation,
+      },
+      message: applyMessage.trim() || undefined,
+    });
+    setSubmitting(false);
+
+    if (result.duplicate) {
+      setApplyError("Vous avez déjà postulé à cette offre.");
+      return;
+    }
+    if (!result.ok) {
+      setApplyError(result.error ?? "Une erreur est survenue. Réessayez.");
+      return;
+    }
+    // Succès — recharger les candidatures
+    const apps = await fetchMyApplications(userId);
+    const map: Record<string, Application> = {};
+    for (const a of apps) map[a.job_posting_id] = a;
+    setApplications(map);
+    setApplyingTo(null);
+    setApplyMessage('');
+  }
 
   // Charge les offres publiées dès que le CV est analysé
   useEffect(() => {
@@ -332,14 +383,67 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
                           {o.description && <div className="col-span-2 mt-2"><span className="font-semibold text-primary">Description :</span> <span className="text-muted">{o.description.slice(0, 280)}{o.description.length > 280 ? '…' : ''}</span></div>}
                         </div>
 
-                        {o.globalScore >= 70 && (
+                        {/* Candidature : déjà envoyée, en cours, ou bouton */}
+                        {applications[o.id] ? (
+                          <div
+                            className="mt-4 p-3 rounded-card text-center border"
+                            style={{
+                              background:   STATUS_COLOR[applications[o.id].status].bg,
+                              borderColor:  STATUS_COLOR[applications[o.id].status].fg + '33',
+                              color:        STATUS_COLOR[applications[o.id].status].fg,
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="text-xs font-bold uppercase tracking-wider mb-0.5">
+                              ✓ Candidature envoyée — {STATUS_LABEL[applications[o.id].status]}
+                            </div>
+                            <div className="text-[11px] opacity-80">
+                              Le {new Date(applications[o.id].applied_at!).toLocaleDateString('fr-FR')}
+                            </div>
+                          </div>
+                        ) : applyingTo === o.id ? (
+                          <div className="mt-4 p-4 rounded-card bg-teal-light border border-teal/20" onClick={(e) => e.stopPropagation()}>
+                            <label className="block text-xs font-semibold text-primary mb-2">
+                              Message au recruteur <span className="text-muted font-normal">(optionnel, max 500 caractères)</span>
+                            </label>
+                            <textarea
+                              value={applyMessage}
+                              onChange={(e) => setApplyMessage(e.target.value.slice(0, 500))}
+                              placeholder="Bonjour, votre offre m'intéresse particulièrement car…"
+                              rows={3}
+                              className="w-full border border-border rounded-btn bg-white px-3 py-2 text-sm text-primary focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20 resize-none mb-2"
+                            />
+                            <div className="text-[10px] text-muted text-right mb-3">{applyMessage.length} / 500</div>
+                            {applyError && <p className="text-xs text-coral mb-2">{applyError}</p>}
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => { setApplyingTo(null); setApplyMessage(''); setApplyError(null); }}
+                                disabled={submitting}
+                                className="px-4 py-2 rounded-btn border border-border bg-white text-muted text-sm font-semibold hover:bg-bg"
+                              >
+                                Annuler
+                              </button>
+                              <button
+                                onClick={() => submitApplication(o)}
+                                disabled={submitting}
+                                className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
+                              >
+                                {submitting ? (
+                                  <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" /> Envoi…</>
+                                ) : (
+                                  <>Envoyer ma candidature →</>
+                                )}
+                              </button>
+                            </div>
+                          </div>
+                        ) : o.globalScore >= 70 ? (
                           <button
-                            onClick={(e) => { e.stopPropagation(); /* TODO: postuler */ }}
+                            onClick={(e) => { e.stopPropagation(); setApplyingTo(o.id); setApplyMessage(''); setApplyError(null); }}
                             className="btn-primary w-full mt-4"
                           >
                             Postuler à cette offre →
                           </button>
-                        )}
+                        ) : null}
                       </div>
                     )}
                   </div>
