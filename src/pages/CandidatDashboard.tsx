@@ -83,12 +83,21 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
 
   // ── Postuler à une offre ─────────────────────────────────────────────────
   async function submitApplication(offer: MatchedOffer) {
-    if (!userId || !offer.recruiterId) {
-      setApplyError("Impossible de postuler — informations manquantes.");
+    if (!userId) {
+      setApplyError("Vous devez être connecté pour postuler.");
+      return;
+    }
+    if (!offer.recruiterId) {
+      setApplyError("Cette offre n'a pas de recruteur associé — contactez le support.");
+      console.error('[Postuler] offer.recruiterId vide pour', offer.id, offer);
       return;
     }
     setSubmitting(true);
     setApplyError(null);
+
+    // On envoie le message tel quel — applyToJob gère le trim et la valeur nulle
+    console.log('[Postuler] envoi pour', offer.title, '— message :', JSON.stringify(applyMessage));
+
     const result = await applyToJob({
       candidateId:   userId,
       jobPostingId:  offer.id,
@@ -99,7 +108,7 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
         dimensions: offer.dimensions,
         recommendation: offer.recommendation,
       },
-      message: applyMessage.trim() || undefined,
+      message: applyMessage,   // brut — le service trim + null-ifie
     });
     setSubmitting(false);
 
@@ -405,29 +414,50 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
                             </div>
                           </div>
                         ) : applyingTo === o.id ? (
-                          <div className="mt-4 p-4 rounded-card bg-teal-light border border-teal/20" onClick={(e) => e.stopPropagation()}>
+                          <div
+                            className="mt-4 p-4 rounded-card bg-teal-light border border-teal/20"
+                            onClick={(e) => e.stopPropagation()}
+                          >
                             <label className="block text-xs font-semibold text-primary mb-2">
                               Message au recruteur <span className="text-muted font-normal">(optionnel, max 500 caractères)</span>
                             </label>
                             <textarea
                               value={applyMessage}
-                              onChange={(e) => setApplyMessage(e.target.value.slice(0, 500))}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                setApplyMessage(e.target.value.slice(0, 500));
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => e.stopPropagation()}
                               placeholder="Bonjour, votre offre m'intéresse particulièrement car…"
                               rows={3}
                               className="w-full border border-border rounded-btn bg-white px-3 py-2 text-sm text-primary focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20 resize-none mb-2"
                             />
-                            <div className="text-[10px] text-muted text-right mb-3">{applyMessage.length} / 500</div>
-                            {applyError && <p className="text-xs text-coral mb-2">{applyError}</p>}
+                            <div className="flex justify-between text-[10px] mb-3">
+                              <span className="text-muted">{applyMessage.trim().length === 0 ? 'Envoi possible sans message' : `${applyMessage.length} caractères saisis`}</span>
+                              <span className="text-muted">{applyMessage.length} / 500</span>
+                            </div>
+                            {applyError && (
+                              <div className="mb-3 p-2 bg-coral-light border border-coral/30 rounded-btn">
+                                <p className="text-xs text-coral font-semibold">⚠ {applyError}</p>
+                              </div>
+                            )}
                             <div className="flex gap-2">
                               <button
-                                onClick={() => { setApplyingTo(null); setApplyMessage(''); setApplyError(null); }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setApplyingTo(null); setApplyMessage(''); setApplyError(null);
+                                }}
                                 disabled={submitting}
                                 className="px-4 py-2 rounded-btn border border-border bg-white text-muted text-sm font-semibold hover:bg-bg"
                               >
                                 Annuler
                               </button>
                               <button
-                                onClick={() => submitApplication(o)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  submitApplication(o);
+                                }}
                                 disabled={submitting}
                                 className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
                               >
@@ -441,7 +471,10 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
                           </div>
                         ) : o.globalScore >= 70 ? (
                           <button
-                            onClick={(e) => { e.stopPropagation(); setApplyingTo(o.id); setApplyMessage(''); setApplyError(null); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setApplyingTo(o.id); setApplyMessage(''); setApplyError(null);
+                            }}
                             className="btn-primary w-full mt-4"
                           >
                             Postuler à cette offre →

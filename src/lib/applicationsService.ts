@@ -44,22 +44,38 @@ export async function applyToJob(payload: {
   message?: string;
 }): Promise<{ ok: boolean; error?: string; duplicate?: boolean }> {
   if (!isConfigured) return { ok: false, error: 'NOT_CONFIGURED' };
-  const { error } = await supabase
+
+  // Nettoyage du message : on garde la chaîne brute (même vide) pour différencier
+  // 'pas de message envoyé' de 'message envoyé mais perdu en DB'
+  const cleanMessage = typeof payload.message === 'string' ? payload.message.trim() : null;
+
+  console.log('[applyToJob] message à envoyer :', JSON.stringify(cleanMessage), '(longueur', (cleanMessage ?? '').length, ')');
+
+  const { data, error } = await supabase
     .from('applications')
     .insert([{
       candidate_id:      payload.candidateId,
       job_posting_id:    payload.jobPostingId,
       recruiter_id:      payload.recruiterId,
-      candidate_message: payload.message ?? null,
+      candidate_message: cleanMessage && cleanMessage.length > 0 ? cleanMessage : null,
       match_score:       payload.matchScore ?? null,
       match_report:      payload.matchReport ?? null,
       status:            'pending',
-    }]);
+    }])
+    .select('id, candidate_message, status, applied_at')
+    .single();
+
   if (error) {
     // 23505 = unique constraint violation (déjà postulé)
     if (error.code === '23505') return { ok: false, duplicate: true };
-    console.error('applyToJob:', error.message);
+    console.error('[applyToJob] échec Supabase :', error.code, error.message, error.details);
     return { ok: false, error: error.message };
+  }
+
+  // Vérification post-insert : le message est-il bien arrivé en DB ?
+  console.log('[applyToJob] OK — row inséré :', data);
+  if (cleanMessage && cleanMessage.length > 0 && !data.candidate_message) {
+    console.warn('[applyToJob] ⚠ Message envoyé mais non sauvegardé en DB. Vérifiez les RLS / colonne candidate_message.');
   }
   return { ok: true };
 }
