@@ -1,183 +1,113 @@
-import { useState } from 'react';
-import { appSteps, offers } from '../data/offers';
-import type { PageName } from '../types';
+import { useEffect, useState } from 'react';
+import type { PageName, JobPosting } from '../types';
+import { fetchMyApplications, STATUS_LABEL, STATUS_COLOR, type Application } from '../lib/applicationsService';
+import { fetchJobPostings } from '../lib/jobPostingService';
+import { ApplicationTimeline } from '../components/ApplicationTimeline';
 
-interface CandidatAvancementProps {
+interface Props {
   setPage: (p: PageName) => void;
+  userId: string;
 }
 
-export function CandidatAvancement({ setPage }: CandidatAvancementProps) {
-  const [message, setMessage] = useState('');
-  const offer = offers[1]; // InnovateSud — En cours
+export function CandidatAvancement({ setPage, userId }: Props) {
+  const [apps, setApps]       = useState<Application[]>([]);
+  const [jobs, setJobs]       = useState<Record<string, JobPosting>>({});
+  const [loading, setLoading] = useState(true);
 
-  const miniScores = [
-    { label: 'Management', value: 91, color: '#09C4A0' },
-    { label: 'Équipe', value: 88, color: '#09C4A0' },
-    { label: 'Environnement', value: 85, color: '#09C4A0' },
-    { label: 'Communication', value: 79, color: '#D48A12' },
-  ];
+  useEffect(() => {
+    if (!userId) { setLoading(false); return; }
+    (async () => {
+      const [myApps, allJobs] = await Promise.all([
+        fetchMyApplications(userId),
+        fetchJobPostings(),
+      ]);
+      const jobMap: Record<string, JobPosting> = {};
+      for (const j of allJobs) jobMap[j.id] = j;
+      setJobs(jobMap);
+      setApps(myApps);
+      setLoading(false);
+    })();
+  }, [userId]);
 
   return (
     <div className="min-h-screen bg-bg">
-      <div className="max-w-2xl mx-auto px-6 py-8">
+      <div className="max-w-4xl mx-auto px-6 py-8">
         <button
           onClick={() => setPage('candidat')}
-          className="mb-6 flex items-center gap-2 text-muted border border-border rounded-btn px-4 py-2 text-sm hover:bg-bg transition-all"
+          className="mb-6 flex items-center gap-2 text-muted border border-border rounded-btn px-4 py-2 text-sm hover:bg-card transition-all bg-white"
         >
-          ← Retour
+          ← Retour au tableau de bord
         </button>
 
-        {/* Header */}
-        <div className="bg-card rounded-card border border-border p-6 mb-6">
-          <div className="flex flex-wrap items-start gap-4">
-            <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
-              style={{ background: offer.accentColor + '26', color: offer.accentColor }}
-            >
-              {offer.logoInitials}
-            </div>
-            <div className="flex-1">
-              <h1 className="text-xl font-extrabold text-primary tracking-tight">
-                {offer.role}
-              </h1>
-              <p className="text-muted text-sm">
-                {offer.company} · {offer.location}
-              </p>
-            </div>
-            <span
-              className="text-sm font-bold px-3 py-1 rounded-full"
-              style={{
-                background: offer.accentColor + '26',
-                color: offer.accentColor,
-              }}
-            >
-              {offer.score}%
-            </span>
-          </div>
-        </div>
+        <h1 className="text-h1 text-primary mb-1">Mes candidatures</h1>
+        <p className="text-muted text-sm mb-8">
+          Suivez l'avancement de chacune de vos candidatures en temps réel.
+        </p>
 
-        {/* Score preview */}
-        <div className="bg-teal-light border border-teal/25 rounded-card p-5 mb-6">
-          <p className="text-sm font-bold text-primary mb-3">
-            Aperçu de compatibilité
-          </p>
-          <div className="space-y-2">
-            {miniScores.map(s => (
-              <div key={s.label} className="flex items-center gap-3">
-                <span className="text-xs text-muted w-28">{s.label}</span>
-                <div className="flex-1 h-1.5 bg-white/60 rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-700"
-                    style={{ width: `${s.value}%`, backgroundColor: s.color }}
-                  />
-                </div>
-                <span
-                  className="text-xs font-bold w-8 text-right"
-                  style={{ color: s.color }}
-                >
-                  {s.value}%
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-teal/70 italic mt-3">
-            Scores complets disponibles après validation par le recruteur.
-          </p>
-        </div>
-
-        {/* Timeline */}
-        <div className="bg-card rounded-card border border-border p-6 mb-6">
-          <h2 className="text-base font-bold text-primary mb-5">
-            Avancement de votre candidature
-          </h2>
-          <div className="relative">
-            {appSteps.map((s, i) => (
-              <div key={s.label} className="flex gap-4 mb-0">
-                {/* Left column: circle + line */}
-                <div className="flex flex-col items-center">
-                  <div
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 z-10"
-                    style={
-                      s.done
-                        ? { background: '#E8F8EF', color: '#23B574' }
-                        : s.active
-                        ? { background: '#09C4A0', color: '#fff' }
-                        : { background: '#F1F2F4', color: '#6A6B80' }
-                    }
-                  >
-                    {s.done ? '✓' : s.active ? '●' : i + 1}
-                  </div>
-                  {i < appSteps.length - 1 && (
-                    <div
-                      className="w-0.5 flex-1 my-1"
-                      style={{
-                        background: s.done ? '#23B574' : '#E5E7EB',
-                        minHeight: 32,
-                      }}
-                    />
-                  )}
-                </div>
-
-                {/* Right content */}
-                <div className={`flex-1 pb-6 ${i === appSteps.length - 1 ? 'pb-0' : ''}`}>
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span
-                      className={`text-sm font-bold ${
-                        s.done
-                          ? 'text-success'
-                          : s.active
-                          ? 'text-primary'
-                          : 'text-muted'
-                      }`}
-                    >
-                      {s.label}
-                    </span>
-                    <span className="text-xs text-muted">{s.date}</span>
-                  </div>
-                  {s.active ? (
-                    <div className="bg-teal-light border border-teal/20 rounded-xl p-3 mt-1">
-                      <p className="text-sm text-primary">{s.detail}</p>
-                    </div>
-                  ) : (
-                    <p className="text-xs text-muted">{s.detail}</p>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Messages */}
-        <div className="bg-card rounded-card border border-border p-6">
-          <h2 className="text-base font-bold text-primary mb-4">Messages</h2>
-          <div className="bg-bg rounded-xl p-3 mb-4">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-primary">
-                Marie Durand · DRH
-              </span>
-              <span className="text-xs text-muted">— 14 mai 2026</span>
-            </div>
-            <p className="text-sm text-primary">
-              Bonjour ! Votre profil a retenu notre attention. Seriez-vous
-              disponible pour un échange de 30 minutes cette semaine ?
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              placeholder="Votre message..."
-              className="flex-1 border border-border rounded-btn bg-bg px-4 py-2.5 text-sm text-primary focus:outline-none focus:border-teal focus:ring-2 focus:ring-teal/20 transition-all"
-            />
+        {loading ? (
+          <div className="py-20 text-center text-muted text-sm">Chargement…</div>
+        ) : apps.length === 0 ? (
+          <div className="bg-card border border-border rounded-card p-10 text-center">
+            <div className="text-5xl mb-3 opacity-40">📭</div>
+            <p className="text-primary font-semibold mb-1">Aucune candidature pour le moment</p>
+            <p className="text-muted text-sm mb-5">Postulez à une offre depuis votre tableau de bord pour démarrer votre suivi.</p>
             <button
-              onClick={() => setMessage('')}
-              className="px-5 py-2.5 rounded-btn bg-teal text-primary font-bold text-sm hover:opacity-90 transition-all"
+              onClick={() => setPage('candidat')}
+              className="btn-primary"
             >
-              Envoyer
+              Voir mes offres compatibles →
             </button>
           </div>
-        </div>
+        ) : (
+          <div className="space-y-4">
+            {apps.map(app => {
+              const job = jobs[app.job_posting_id];
+              const colors = STATUS_COLOR[app.status];
+
+              return (
+                <div key={app.id} className="bg-card border border-border rounded-card p-6 shadow-soft">
+                  <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-primary text-base truncate">
+                        {job?.title ?? 'Offre supprimée'}
+                      </h3>
+                      <p className="text-xs text-muted">
+                        {job?.company || 'Entreprise'}{job?.location ? ` · ${job.location}` : ''}
+                        {app.match_score != null && (
+                          <span className="ml-2">· Match : <strong className="text-teal">{app.match_score}%</strong></span>
+                        )}
+                      </p>
+                    </div>
+                    <span
+                      className="text-xs font-bold px-3 py-1.5 rounded-pill flex-shrink-0"
+                      style={{ background: colors.bg, color: colors.fg }}
+                    >
+                      {STATUS_LABEL[app.status]}
+                    </span>
+                  </div>
+
+                  <ApplicationTimeline status={app.status} />
+
+                  <div className="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-3 justify-between">
+                    <span className="text-[11px] text-muted">
+                      Envoyée le {new Date(app.applied_at!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </span>
+                    {app.candidate_message && (
+                      <details className="text-xs">
+                        <summary className="text-teal font-semibold cursor-pointer hover:underline">
+                          Voir mon message
+                        </summary>
+                        <p className="mt-2 p-3 bg-bg rounded border-l-2 border-teal italic text-primary max-w-md">
+                          « {app.candidate_message} »
+                        </p>
+                      </details>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

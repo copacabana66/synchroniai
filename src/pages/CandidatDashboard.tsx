@@ -4,6 +4,7 @@ import { ScoreBadge } from '../components/ScoreBadge';
 import { fetchJobPostings } from '../lib/jobPostingService';
 import { getProfile } from '../lib/candidateService';
 import { applyToJob, fetchMyApplications, STATUS_LABEL, STATUS_COLOR, type Application } from '../lib/applicationsService';
+import { ApplicationTimeline } from '../components/ApplicationTimeline';
 
 interface CandidatDashboardProps {
   setPage: (p: PageName) => void;
@@ -51,6 +52,7 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
   const [applyMessage, setApplyMessage]   = useState('');
   const [applyError, setApplyError]       = useState<string | null>(null);
   const [submitting, setSubmitting]       = useState(false);
+  const [successModal, setSuccessModal]   = useState<{ offer: MatchedOffer } | null>(null);
 
   const doneCount = [analysis.cv, analysis.questionnaire, analysis.video, hasAssessment].filter(Boolean).length;
   const fullyComplete = analysisComplete && hasAssessment;
@@ -109,13 +111,14 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
       setApplyError(result.error ?? "Une erreur est survenue. Réessayez.");
       return;
     }
-    // Succès — recharger les candidatures
+    // Succès — recharger les candidatures + ouvrir le modal de confirmation
     const apps = await fetchMyApplications(userId);
     const map: Record<string, Application> = {};
     for (const a of apps) map[a.job_posting_id] = a;
     setApplications(map);
     setApplyingTo(null);
     setApplyMessage('');
+    setSuccessModal({ offer });
   }
 
   // Charge les offres publiées dès que le CV est analysé
@@ -453,6 +456,63 @@ export function CandidatDashboard({ setPage, analysisComplete, analysis, userId 
           )}
         </div>
       </div>
+
+      {/* ── Modal de confirmation après envoi de candidature ─────────────────── */}
+      {successModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary/60 backdrop-blur-sm animate-fade-in"
+          onClick={() => setSuccessModal(null)}
+        >
+          <div
+            className="bg-card rounded-card max-w-lg w-full p-8 shadow-medium animate-fade-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header — check animé */}
+            <div className="flex flex-col items-center mb-5">
+              <div className="w-20 h-20 rounded-full bg-teal flex items-center justify-center mb-4 animate-pulse-soft">
+                <span className="text-4xl text-white">✓</span>
+              </div>
+              <h2 className="text-h2 text-primary text-center">Candidature envoyée !</h2>
+              <p className="text-muted text-sm text-center mt-1">
+                Bonne nouvelle, votre profil est en route vers <strong className="text-primary">{successModal.offer.company || successModal.offer.title}</strong>.
+              </p>
+            </div>
+
+            {/* Ce qui a été transmis */}
+            <div className="bg-teal-light border border-teal/20 rounded-card p-4 mb-5">
+              <div className="text-xs font-bold text-teal-deep uppercase tracking-wider mb-2">📤 Transmis au recruteur</div>
+              <ul className="text-sm text-primary space-y-1">
+                <li>✓ Votre CV analysé ({analysis.cvData?.fullName ?? 'profil candidat'})</li>
+                <li>✓ Votre score de compatibilité ({successModal.offer.globalScore}%)</li>
+                <li>✓ Vos réponses au questionnaire</li>
+                {analysis.assessmentData && <li>✓ Votre profil comportemental ({analysis.assessmentData.personality.type})</li>}
+                {analysis.videoData && <li>✓ Votre analyse orale</li>}
+              </ul>
+            </div>
+
+            {/* Timeline initiale */}
+            <div className="mb-5">
+              <div className="text-xs font-bold text-muted uppercase tracking-wider mb-2 text-center">Étapes de votre candidature</div>
+              <ApplicationTimeline status="pending" />
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSuccessModal(null)}
+                className="px-5 py-2.5 rounded-btn border border-border text-sm font-semibold text-muted hover:bg-bg flex-1"
+              >
+                Continuer à explorer
+              </button>
+              <button
+                onClick={() => { setSuccessModal(null); setPage('candidat-avancement'); }}
+                className="btn-primary flex-1"
+              >
+                Voir mes candidatures →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import type { PageName, CvAnalysisData, VideoAnalysisData } from '../types';
 import type { ProfileRow } from '../lib/candidateService';
 import { fetchAllCandidates } from '../lib/candidateService';
 import { fetchJobPostings } from '../lib/jobPostingService';
+import { fetchTeams, type RecruiterTeam } from '../lib/teamService';
 import type { JobPosting } from '../types';
 import { Avatar } from '../components/Avatar';
 import { ScoreBadge } from '../components/ScoreBadge';
@@ -67,20 +68,23 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
   const [minScore, setMinScore]         = useState(60);   // seuil de compatibilité affiché
   const [hasMatched, setHasMatched]     = useState(false); // matching déjà lancé au moins une fois ?
   const [applications, setApplications] = useState<Application[]>([]);
+  const [teams, setTeams]               = useState<RecruiterTeam[]>([]);
 
   // Chargement initial des fiches de poste, candidats, notes et candidatures
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [jobs, profiles, notesMap, apps] = await Promise.all([
+      const [jobs, profiles, notesMap, apps, myTeams] = await Promise.all([
         fetchJobPostings(userId),
         fetchAllCandidates(),
         fetchNotes(userId),
         fetchRecruiterApplications(userId),
+        fetchTeams(userId),
       ]);
       setJobPostings(jobs);
       setNotes(notesMap);
       setApplications(apps);
+      setTeams(myTeams);
       if (jobs.length > 0) setSelectedJob(jobs[0].id);
       // Candidats sans score (pas encore matchés)
       const base: MatchedCandidate[] = profiles.map((p, i) => ({
@@ -121,6 +125,7 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
                 expectations: job.expectations,
                 teamProfile: job.teamProfile,
                 managementStyle: job.managementStyle,
+                managementDetail: job.managementDetail,
               },
               preferences: mc.profile.management_pref ? {
                 managementPref: mc.profile.management_pref,
@@ -129,6 +134,8 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
                 rhythmPref: mc.profile.rhythm_pref,
               } : undefined,
               videoAnalysis: mc.videoData ?? undefined,
+              // ADN de la dernière équipe analysée → matching enrichi
+              teamDna: teams[0]?.collective_dna ?? undefined,
             }),
           });
           if (!res.ok) return mc;

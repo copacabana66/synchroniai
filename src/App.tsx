@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { PageName, Candidate, AuthUser, AnalysisStatus } from './types';
 import { Navbar } from './components/Navbar';
+import { Sidebar } from './components/Sidebar';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Pricing } from './pages/Pricing';
@@ -86,15 +87,17 @@ export default function App() {
     );
   }
 
-  const showNavbar = !NO_NAVBAR.includes(page);
+  // Sidebar visible uniquement quand connecté ET dans l'app (pas landing/auth/pricing)
+  const APP_PAGES: PageName[] = [
+    'recruteur', 'recruteur-team', 'recruteur-fiche-poste', 'compte-rendu',
+    'candidat', 'candidat-profil', 'candidat-avancement', 'candidat-test',
+  ];
+  const showSidebar = !!user && APP_PAGES.includes(page);
+  const showNavbar  = !showSidebar && !NO_NAVBAR.includes(page);
   const analysisComplete = analysis.cv && analysis.questionnaire;
 
-  return (
-    <div className="min-h-screen bg-bg font-sans">
-      {showNavbar && (
-        <Navbar page={page} setPage={navigateTo} user={user} onLogout={handleLogout} />
-      )}
-
+  const pageContent = (
+    <>
       {page === 'landing'    && <Landing setPage={navigateTo} />}
       {page === 'login'      && <Login setPage={setPage} setUser={handleSetUser} />}
       {page === 'pricing'    && <Pricing setPage={setPage} setPlanChoice={setPlanChoice} />}
@@ -128,7 +131,9 @@ export default function App() {
           onAnalysisComplete={handleAnalysisComplete}
         />
       )}
-      {page === 'candidat-avancement' && <CandidatAvancement setPage={navigateTo} />}
+      {page === 'candidat-avancement' && (
+        <CandidatAvancement setPage={navigateTo} userId={user?.id ?? ''} />
+      )}
       {page === 'recruteur-team' && (
         <RecruteurTeam setPage={navigateTo} recruiterId={user?.id ?? ''} />
       )}
@@ -138,6 +143,23 @@ export default function App() {
           recruiterId={user?.id ?? ''}
           companyName={user?.name ?? 'Mon entreprise'}
         />
+      )}
+    </>
+  );
+
+  return (
+    <div className="min-h-screen bg-bg font-sans">
+      {showNavbar && (
+        <Navbar page={page} setPage={navigateTo} user={user} onLogout={handleLogout} />
+      )}
+
+      {showSidebar && user ? (
+        <div className="flex min-h-screen">
+          <Sidebar page={page} setPage={navigateTo} user={user} onLogout={handleLogout} />
+          <main className="flex-1 min-w-0">{pageContent}</main>
+        </div>
+      ) : (
+        pageContent
       )}
     </div>
   );
