@@ -45,39 +45,70 @@ export async function applyToJob(payload: {
 }): Promise<{ ok: boolean; error?: string; duplicate?: boolean }> {
   if (!isConfigured) return { ok: false, error: 'NOT_CONFIGURED' };
 
-  // Nettoyage du message : on garde la chaîne brute (même vide) pour différencier
-  // 'pas de message envoyé' de 'message envoyé mais perdu en DB'
-  const cleanMessage = typeof payload.message === 'string' ? payload.message.trim() : null;
+  const cleanMessage = typeof payload.message === 'string' ? payload.message.trim() : '';
+  const hasMessage   = cleanMessage.length > 0;
 
-  console.log('[applyToJob] message à envoyer :', JSON.stringify(cleanMessage), '(longueur', (cleanMessage ?? '').length, ')');
+  // ─────────────────────────────────────────────────────────────
+  // STRATÉGIE DOUBLE : le message est envoyé à 2 endroits différents
+  //   1) Colonne dédiée 'candidate_message' (idéal si le schéma est OK)
+  //   2) Embarqué dans match_report.candidateMessage (jsonb — toujours OK)
+  // Le recruteur lit en priorité la colonne, et fallback sur le JSON.
+  // ─────────────────────────────────────────────────────────────
+  const matchReportWithMessage = {
+    ...(payload.matchReport ?? {}),
+    candidateMessage: hasMessage ? cleanMessage : null,
+  };
 
-  const { data, error } = await supabase
+  // Tentative 1 : insert complet (colonne dédiée + JSON)
+  let { data, error } = await supabase
     .from('applications')
     .insert([{
       candidate_id:      payload.candidateId,
       job_posting_id:    payload.jobPostingId,
       recruiter_id:      payload.recruiterId,
-      candidate_message: cleanMessage && cleanMessage.length > 0 ? cleanMessage : null,
+      candidate_message: hasMessage ? cleanMessage : null,
       match_score:       payload.matchScore ?? null,
-      match_report:      payload.matchReport ?? null,
+      match_report:      matchReportWithMessage,
       status:            'pending',
     }])
     .select('id, candidate_message, status, applied_at')
     .single();
 
+  // Tentative 2 : si la colonne candidate_message n'existe pas, on retry sans elle
+  // (le message reste dans match_report.candidateMessage)
+  if (error && (error.code === 'PGRST204' || error.message?.includes('candidate_message'))) {
+    console.warn('[applyToJob] Colonne candidate_message indisponible — fallback JSON');
+    const retry = await supabase
+      .from('applications')
+      .insert([{
+        candidate_id:      payload.candidateId,
+        job_posting_id:    payload.jobPostingId,
+        recruiter_id:      payload.recruiterId,
+        match_score:       payload.matchScore ?? null,
+        match_report:      matchReportWithMessage,
+        status:            'pending',
+      }])
+      .select('id, status, applied_at')
+      .single();
+    data  = retry.data as typeof data;
+    error = retry.error;
+  }
+
   if (error) {
-    // 23505 = unique constraint violation (déjà postulé)
     if (error.code === '23505') return { ok: false, duplicate: true };
-    console.error('[applyToJob] échec Supabase :', error.code, error.message, error.details);
+    console.error('[applyToJob] échec :', error.code, error.message);
     return { ok: false, error: error.message };
   }
 
-  // Vérification post-insert : le message est-il bien arrivé en DB ?
-  console.log('[applyToJob] OK — row inséré :', data);
-  if (cleanMessage && cleanMessage.length > 0 && !data.candidate_message) {
-    console.warn('[applyToJob] ⚠ Message envoyé mais non sauvegardé en DB. Vérifiez les RLS / colonne candidate_message.');
-  }
   return { ok: true };
+}
+
+/** Extrait le message du candidat avec fallback : colonne dédiée → match_report */
+export function getCandidateMessage(app: Application): string | null {
+  if (app.candidate_message) return app.candidate_message;
+  const report = app.match_report as Record<string, unknown> | undefined;
+  const msg = report?.candidateMessage;
+  return typeof msg === 'string' && msg.trim().length > 0 ? msg : null;
 }
 
 export async function fetchMyApplications(candidateId: string): Promise<Application[]> {

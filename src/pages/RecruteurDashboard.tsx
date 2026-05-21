@@ -10,7 +10,7 @@ import { ScoreBadge } from '../components/ScoreBadge';
 import { fetchNotes, upsertNote, type RecruiterNote } from '../lib/notesService';
 import { arrayToCSV, downloadFile, printPdf } from '../lib/exportHelpers';
 import {
-  fetchRecruiterApplications, updateApplicationStatus,
+  fetchRecruiterApplications, updateApplicationStatus, getCandidateMessage,
   STATUS_LABEL as APP_STATUS_LABEL,
   STATUS_COLOR as APP_STATUS_COLOR,
   type Application, type ApplicationStatus,
@@ -351,11 +351,14 @@ export function RecruteurDashboard({ setPage, userId }: RecruteurDashboardProps)
                           <span className="ml-2">· Score au dépôt : <strong>{app.match_score}%</strong></span>
                         )}
                       </div>
-                      {app.candidate_message && (
-                        <div className="mt-1 text-xs text-primary bg-bg p-2 rounded border-l-2 border-teal italic line-clamp-2">
-                          « {app.candidate_message} »
-                        </div>
-                      )}
+                      {(() => {
+                        const msg = getCandidateMessage(app);
+                        return msg ? (
+                          <div className="mt-1 text-xs text-primary bg-bg p-2 rounded border-l-2 border-teal italic line-clamp-2">
+                            « {msg} »
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
 
                     <span

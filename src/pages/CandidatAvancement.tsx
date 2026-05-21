@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { PageName, JobPosting } from '../types';
-import { fetchMyApplications, STATUS_LABEL, STATUS_COLOR, type Application } from '../lib/applicationsService';
+import { fetchMyApplications, getCandidateMessage, STATUS_LABEL, STATUS_COLOR, type Application } from '../lib/applicationsService';
 import { fetchJobPostings } from '../lib/jobPostingService';
 import { ApplicationTimeline } from '../components/ApplicationTimeline';
 
@@ -92,16 +92,19 @@ export function CandidatAvancement({ setPage, userId }: Props) {
                     <span className="text-[11px] text-muted">
                       Envoyée le {new Date(app.applied_at!).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
                     </span>
-                    {app.candidate_message && (
-                      <details className="text-xs">
-                        <summary className="text-teal font-semibold cursor-pointer hover:underline">
-                          Voir mon message
-                        </summary>
-                        <p className="mt-2 p-3 bg-bg rounded border-l-2 border-teal italic text-primary max-w-md">
-                          « {app.candidate_message} »
-                        </p>
-                      </details>
-                    )}
+                    {(() => {
+                      const msg = getCandidateMessage(app);
+                      return msg ? (
+                        <details className="text-xs">
+                          <summary className="text-teal font-semibold cursor-pointer hover:underline">
+                            Voir mon message
+                          </summary>
+                          <p className="mt-2 p-3 bg-bg rounded border-l-2 border-teal italic text-primary max-w-md">
+                            « {msg} »
+                          </p>
+                        </details>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
               );
