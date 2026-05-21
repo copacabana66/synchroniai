@@ -1,5 +1,5 @@
 import { supabase, isConfigured } from './supabase';
-import type { CvAnalysisData, VideoAnalysisData, QuestionnaireData, AssessmentData } from '../types';
+import type { CvAnalysisData, VideoAnalysisData, QuestionnaireData, AssessmentData, AnalysisStatus } from '../types';
 
 export interface ProfileRow {
   id: string;
@@ -49,6 +49,59 @@ export async function getProfile(userId: string): Promise<ProfileRow | null> {
     .maybeSingle();
   if (error) { console.error('getProfile error:', error.message); return null; }
   return data;
+}
+
+/**
+ * Recharge l'AnalysisStatus complet depuis Supabase pour un candidat.
+ * Permet au candidat de retrouver son profil intact après reconnexion,
+ * sans devoir re-uploader son CV ni refaire le questionnaire/test/audio.
+ */
+export async function loadAnalysisStatus(userId: string): Promise<AnalysisStatus> {
+  const empty: AnalysisStatus = { cv: false, questionnaire: false, video: false };
+  if (!userId) return empty;
+
+  const profile = await getProfile(userId);
+  if (!profile) return empty;
+
+  // CV — JSON sérialisé dans cv_text
+  let cvData: CvAnalysisData | undefined;
+  if (profile.cv_text) {
+    try { cvData = JSON.parse(profile.cv_text); } catch { /* tolère JSON corrompu */ }
+  }
+
+  // Vidéo / audio — JSON sérialisé
+  let videoData: VideoAnalysisData | undefined;
+  if (profile.video_analysis) {
+    try { videoData = JSON.parse(profile.video_analysis); } catch { /* idem */ }
+  }
+
+  // Questionnaire — champs séparés
+  const questionnaireData: QuestionnaireData | undefined =
+    profile.management_pref ? {
+      managementPref:    profile.management_pref,
+      environmentPref:   profile.environment_pref    ?? '',
+      collaborationPref: profile.collaboration_pref ?? '',
+      rhythmPref:        profile.rhythm_pref         ?? '',
+    } : undefined;
+
+  // Assessment — colonnes jsonb (Supabase parse automatiquement)
+  const assessmentData: AssessmentData | undefined =
+    profile.assessment_personality && profile.assessment_cognitive ? {
+      cognitive:   profile.assessment_cognitive,
+      personality: profile.assessment_personality,
+      completedAt: profile.assessment_completed_at ?? '',
+    } : undefined;
+
+  return {
+    cv:            !!profile.analysis_cv,
+    cvData,
+    questionnaire: !!profile.analysis_questionnaire,
+    questionnaireData,
+    video:         !!profile.analysis_video,
+    videoData,
+    assessment:    !!profile.analysis_assessment,
+    assessmentData,
+  };
 }
 
 // Retourne tous les candidats ayant au moins complété le CV (pour les recruteurs)

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import type { PageName, AnalysisStatus, CvAnalysisData, VideoAnalysisData, QuestionnaireData } from '../types';
-import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile } from '../lib/candidateService';
+import { saveCvAnalysis, saveVideoAnalysis, saveQuestionnaire, savePreferences, uploadFile, getProfile } from '../lib/candidateService';
 
 // Convertit un File en base64 pur (sans le préfixe data:...)
 function fileToBase64(file: File): Promise<string> {
@@ -100,6 +100,39 @@ export function CandidatProfil({ setPage, userId, onAnalysisComplete }: Candidat
   useEffect(() => {
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, []);
+
+  // ── Pré-remplit tous les champs depuis Supabase au chargement ──────────────
+  // Le candidat n'a pas à re-uploader son CV ni à refaire le questionnaire
+  // s'il revient sur la page après s'être reconnecté.
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const profile = await getProfile(userId);
+      if (!profile) return;
+
+      // CV : restaure le bloc d'analyse (le PDF lui-même n'est pas re-uploadé)
+      if (profile.cv_text) {
+        try { setCvData(JSON.parse(profile.cv_text) as CvAnalysisData); } catch { /* ignore */ }
+      }
+
+      // Audio : restaure l'analyse orale
+      if (profile.video_analysis) {
+        try { setVideoData(JSON.parse(profile.video_analysis) as VideoAnalysisData); } catch { /* ignore */ }
+      }
+
+      // Questionnaire
+      if (profile.management_pref)    setQ1(profile.management_pref);
+      if (profile.environment_pref)   setQ2(profile.environment_pref);
+      if (profile.collaboration_pref) setQ3(profile.collaboration_pref);
+      if (profile.rhythm_pref)        setQ4(profile.rhythm_pref);
+
+      // Préférences
+      if (profile.location_pref)      setLocalisation(profile.location_pref);
+      if (profile.salary_expectation) setSalaire(profile.salary_expectation);
+      if (profile.contract_type)      setContrat(profile.contract_type);
+      if (profile.availability)       setDispo(profile.availability);
+    })();
+  }, [userId]);
 
   // ── CV upload & analysis ──────────────────────────────────────────────────
   async function handleCvFile(file: File) {

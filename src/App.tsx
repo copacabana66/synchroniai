@@ -14,6 +14,7 @@ import { CandidatTest } from './pages/CandidatTest';
 import { RecruteurFichePoste } from './pages/RecruteurFichePoste';
 import { RecruteurTeam } from './pages/RecruteurTeam';
 import { getSession, onAuthChange, authSignOut } from './lib/auth';
+import { loadAnalysisStatus } from './lib/candidateService';
 
 const NO_NAVBAR: PageName[] = ['login', 'pricing', 'register'];
 const EMPTY_ANALYSIS: AnalysisStatus = { cv: false, questionnaire: false, video: false };
@@ -28,8 +29,15 @@ export default function App() {
 
   // Restore session on mount
   useEffect(() => {
-    getSession().then(u => {
-      if (u) setUser(u);
+    getSession().then(async u => {
+      if (u) {
+        setUser(u);
+        // Candidat : recharge son analyse complète depuis Supabase
+        if (u.role === 'candidat') {
+          const status = await loadAnalysisStatus(u.id);
+          setAnalysis(status);
+        }
+      }
       setSessionLoading(false);
     });
     // Listen for auth state changes (tab refocus, token refresh, logout from another tab)
@@ -39,9 +47,15 @@ export default function App() {
 
   useEffect(() => { window.scrollTo(0, 0); }, [page]);
 
-  function handleSetUser(u: AuthUser) {
+  async function handleSetUser(u: AuthUser) {
     setUser(u);
-    setAnalysis(EMPTY_ANALYSIS);
+    // À la connexion / inscription, recharge tout de suite l'analyse existante
+    if (u.role === 'candidat') {
+      const status = await loadAnalysisStatus(u.id);
+      setAnalysis(status);
+    } else {
+      setAnalysis(EMPTY_ANALYSIS);
+    }
   }
 
   function handleAnalysisComplete(steps: AnalysisStatus) {
